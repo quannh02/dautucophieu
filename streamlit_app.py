@@ -1,0 +1,336 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import time
+import json
+from datetime import datetime, timedelta
+from crypto_analyzer import CryptoAnalyzer
+from alert_system import AlertSystem
+import threading
+
+# Configure Streamlit page
+st.set_page_config(
+    page_title="🚀 Crypto Trading Alert System",
+    page_icon="🚀",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# Custom CSS for better styling
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 3rem;
+        color: #1f77b4;
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .metric-card {
+        background-color: #f0f2f6;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border-left: 5px solid #1f77b4;
+    }
+    .signal-long {
+        background-color: #d4edda;
+        color: #155724;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: bold;
+    }
+    .signal-short {
+        background-color: #f8d7da;
+        color: #721c24;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: bold;
+    }
+    .signal-neutral {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 0.5rem;
+        border-radius: 0.25rem;
+        font-weight: bold;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# Initialize session state
+if 'analyzer' not in st.session_state:
+    st.session_state.analyzer = CryptoAnalyzer()
+    st.session_state.alert_system = AlertSystem()
+    st.session_state.monitoring = False
+    st.session_state.last_update = None
+
+def get_signal_color(signal):
+    """Get color for signal display"""
+    if 'LONG' in signal:
+        return "#28a745"  # Green
+    elif 'SHORT' in signal:
+        return "#dc3545"  # Red
+    else:
+        return "#ffc107"  # Yellow
+
+def format_signal_display(signal, strength=0):
+    """Format signal for display with emojis"""
+    emoji_map = {
+        'STRONG_LONG': '🟢',
+        'LONG': '🟢',
+        'NEUTRAL': '🟡',
+        'SHORT': '🔴',
+        'STRONG_SHORT': '🔴'
+    }
+    return f"{emoji_map.get(signal, '⚪')} {signal} (Strength: {strength})"
+
+def create_price_chart(df, symbol):
+    """Create interactive price chart with technical indicators"""
+    fig = make_subplots(
+        rows=4, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        subplot_titles=('Price & Moving Averages', 'RSI', 'MACD', 'Volume'),
+        row_heights=[0.5, 0.2, 0.2, 0.1]
+    )
+    
+    # Candlestick chart
+    fig.add_trace(
+        go.Candlestick(
+            x=df.index,
+            open=df['open'],
+            high=df['high'],
+            low=df['low'],
+            close=df['close'],
+            name="Price"
+        ),
+        row=1, col=1
+    )
+    
+    # Moving averages
+    if 'sma_20' in df.columns:
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['sma_20'], name='SMA 20', line=dict(color='orange')),
+            row=1, col=1
+        )
+    
+    if 'sma_50' in df.columns:
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['sma_50'], name='SMA 50', line=dict(color='purple')),
+            row=1, col=1
+        )
+    
+    # Bollinger Bands
+    if all(col in df.columns for col in ['bb_upper', 'bb_middle', 'bb_lower']):
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['bb_upper'], name='BB Upper',
+                      line=dict(color='gray', dash='dash')),
+            row=1, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['bb_lower'], name='BB Lower',
+                      line=dict(color='gray', dash='dash'), fill='tonexty'),
+            row=1, col=1
+        )
+    
+    # RSI
+    if 'rsi' in df.columns:
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['rsi'], name='RSI', line=dict(color='blue')),
+            row=2, col=1
+        )
+        # RSI overbought/oversold lines
+        fig.add_hline(y=70, line_dash="dash", line_color="red", row=2, col=1)
+        fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
+    
+    # MACD
+    if all(col in df.columns for col in ['macd', 'macd_signal']):
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['macd'], name='MACD', line=dict(color='blue')),
+            row=3, col=1
+        )
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['macd_signal'], name='MACD Signal', line=dict(color='red')),
+            row=3, col=1
+        )
+        if 'macd_histogram' in df.columns:
+            fig.add_trace(
+                go.Bar(x=df.index, y=df['macd_histogram'], name='MACD Histogram', opacity=0.3),
+                row=3, col=1
+            )
+    
+    # Volume
+    fig.add_trace(
+        go.Bar(x=df.index, y=df['volume'], name='Volume', opacity=0.5),
+        row=4, col=1
+    )
+    
+    # Update layout
+    fig.update_layout(
+        title=f"{symbol} Technical Analysis",
+        xaxis_rangeslider_visible=False,
+        height=800,
+        showlegend=False
+    )
+    
+    # Update y-axis for RSI
+    fig.update_yaxes(range=[0, 100], row=2, col=1)
+    
+    return fig
+
+def main():
+    # Header
+    st.markdown('<h1 class="main-header">🚀 Crypto Trading Alert System</h1>', unsafe_allow_html=True)
+    
+    # Sidebar
+    st.sidebar.header("⚙️ Settings")
+    
+    # Monitoring controls
+    st.sidebar.subheader("🔄 Real-time Monitoring")
+    
+    if st.sidebar.button("▶️ Start Monitoring" if not st.session_state.monitoring else "⏹️ Stop Monitoring"):
+        if not st.session_state.monitoring:
+            st.session_state.monitoring = True
+            st.sidebar.success("Monitoring started!")
+        else:
+            st.session_state.monitoring = False
+            st.sidebar.info("Monitoring stopped!")
+    
+    # Manual refresh
+    if st.sidebar.button("🔄 Refresh Data"):
+        st.session_state.last_update = datetime.now()
+        st.rerun()
+    
+    # Auto-refresh interval
+    refresh_interval = st.sidebar.selectbox(
+        "Auto-refresh interval (seconds)",
+        [30, 60, 300, 600, 900],
+        index=2
+    )
+    
+    # Settings
+    st.sidebar.subheader("📊 Chart Settings")
+    show_technical_indicators = st.sidebar.checkbox("Show Technical Indicators", value=True)
+    chart_interval = st.sidebar.selectbox("Chart Interval", ["5m", "15m", "1h", "4h", "1d"], index=0)
+    
+    # Main content
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.subheader("📈 Current Market Analysis")
+        
+        # Get current analysis
+        with st.spinner("Fetching market data..."):
+            results = st.session_state.analyzer.analyze_all_symbols()
+        
+        if results:
+            # Create tabs for each symbol
+            tabs = st.tabs([symbol.replace('USDT', '/USDT') for symbol in results.keys()])
+            
+            for i, (symbol, data) in enumerate(results.items()):
+                with tabs[i]:
+                    if 'error' in data:
+                        st.error(f"❌ Error fetching data for {symbol}: {data['error']}")
+                        continue
+                    
+                    analysis = data['analysis']
+                    df = data.get('data', pd.DataFrame())
+                    
+                    # Signal display
+                    signal_color = get_signal_color(analysis['signal'])
+                    st.markdown(
+                        f"""
+                        <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
+                            <h3 style="color: {signal_color}; margin: 0;">
+                                {format_signal_display(analysis['signal'], analysis['strength'])}
+                            </h3>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+                    
+                    # Key metrics
+                    metric_cols = st.columns(4)
+                    with metric_cols[0]:
+                        st.metric("💰 Current Price", f"${analysis['current_price']:,.4f}")
+                    with metric_cols[1]:
+                        st.metric("📈 RSI", f"{analysis['rsi']:.2f}")
+                    with metric_cols[2]:
+                        st.metric("📊 MACD", f"{analysis['macd']:.6f}")
+                    with metric_cols[3]:
+                        st.metric("🎯 Signal Strength", analysis['strength'])
+                    
+                    # Entry and exit levels
+                    if analysis['signal'] != 'NEUTRAL':
+                        entry_cols = st.columns(3)
+                        with entry_cols[0]:
+                            st.metric("🎯 Entry Price", f"${analysis['entry_price']:,.4f}")
+                        with entry_cols[1]:
+                            if analysis['stop_loss'] > 0:
+                                st.metric("🛑 Stop Loss", f"${analysis['stop_loss']:,.4f}")
+                        with entry_cols[2]:
+                            if analysis['take_profit'] > 0:
+                                st.metric("🎯 Take Profit", f"${analysis['take_profit']:,.4f}")
+                    
+                    # Analysis reasons
+                    st.subheader("📋 Analysis Details")
+                    for reason in analysis['reasons']:
+                        st.write(f"• {reason}")
+                    
+                    # Technical chart
+                    if show_technical_indicators and not df.empty:
+                        st.subheader("📊 Technical Analysis Chart")
+                        chart = create_price_chart(df, symbol.replace('USDT', '/USDT'))
+                        st.plotly_chart(chart, use_container_width=True)
+    
+    with col2:
+        st.subheader("🚨 Alert History")
+        
+        # Load alert history
+        try:
+            alert_history = st.session_state.alert_system.get_alert_history(20)
+            
+            if alert_history:
+                for alert in reversed(alert_history[-10:]):  # Show last 10 alerts
+                    symbol_clean = alert['symbol'].replace('USDT', '/USDT')
+                    signal_color = get_signal_color(alert['signal'])
+                    
+                    st.markdown(
+                        f"""
+                        <div style="background-color: {signal_color}10; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid {signal_color};">
+                            <strong>{symbol_clean}</strong><br>
+                            <span style="color: {signal_color};">{alert['signal']}</span><br>
+                            <small>{alert['timestamp']}</small><br>
+                            <small>${alert['price']:,.4f}</small>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
+            else:
+                st.info("No alerts yet. Start monitoring to see alerts here.")
+                
+        except Exception as e:
+            st.error(f"Error loading alert history: {e}")
+        
+        # System status
+        st.subheader("📊 System Status")
+        status_color = "#28a745" if st.session_state.monitoring else "#dc3545"
+        status_text = "🟢 Active" if st.session_state.monitoring else "🔴 Inactive"
+        
+        st.markdown(
+            f"""
+            <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
+                <strong>Monitoring Status:</strong> {status_text}<br>
+                <strong>Last Update:</strong> {st.session_state.last_update or 'Never'}<br>
+                <strong>Symbols:</strong> BTC/USDT, ETH/USDT
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    
+    # Auto-refresh
+    if st.session_state.monitoring:
+        time.sleep(refresh_interval)
+        st.rerun()
+
+if __name__ == "__main__":
+    main() 

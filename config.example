@@ -1,0 +1,31 @@
+# Crypto Trading Alert System Configuration
+# Copy this file to config.py and modify as needed
+
+# API Configuration (optional - uses public endpoints by default)
+# BINANCE_API_KEY = "your_api_key_here"
+# BINANCE_SECRET_KEY = "your_secret_key_here"
+
+# Alert Settings
+ALERT_INTERVAL = 300  # seconds (5 minutes)
+ENABLE_DESKTOP_NOTIFICATIONS = True
+ENABLE_CONSOLE_ALERTS = True
+
+# Trading Pairs (list)
+SYMBOLS = ["BTCUSDT", "ETHUSDT"]
+
+# Technical Analysis Settings
+RSI_PERIOD = 14
+SMA_SHORT = 20
+SMA_LONG = 50
+EMA_SHORT = 12
+EMA_LONG = 26
+BOLLINGER_PERIOD = 20
+STOCH_PERIOD = 14
+
+# Risk Management
+ATR_STOP_LOSS_MULTIPLIER = 2.0
+ATR_TAKE_PROFIT_MULTIPLIER = 3.0
+
+# Logging
+LOG_LEVEL = "INFO"
+LOG_FILE = "crypto_alerts.log" 

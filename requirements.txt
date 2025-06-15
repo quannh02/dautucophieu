@@ -1,0 +1,12 @@
+websocket-client
+requests
+pandas
+numpy
+ta
+streamlit
+plotly
+python-binance
+ccxt
+python-dotenv
+colorama
+plyer 
