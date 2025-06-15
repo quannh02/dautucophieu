@@ -63,6 +63,7 @@ if 'analyzer' not in st.session_state:
     st.session_state.monitoring = False
     st.session_state.last_update = None
     st.session_state.previous_interval = "5m"
+    st.session_state.current_interval = "5m"
     st.session_state.analysis_cache = {}
 
 def get_signal_color(signal):
@@ -200,6 +201,8 @@ def main():
     # Manual refresh
     if st.sidebar.button("🔄 Refresh Data"):
         st.session_state.last_update = datetime.now()
+        # Clear cache to force fresh data while keeping current interval
+        st.session_state.analysis_cache = {}
         st.rerun()
     
     # Auto-refresh interval
@@ -212,12 +215,18 @@ def main():
     # Settings
     st.sidebar.subheader("📊 Chart Settings")
     show_technical_indicators = st.sidebar.checkbox("Show Technical Indicators", value=True)
-    chart_interval = st.sidebar.selectbox("Chart Interval", ["5m", "15m", "1h", "4h", "1d"], index=0)
+    
+    # Get current index for chart interval to maintain selection
+    intervals = ["5m", "15m", "1h", "4h", "1d"]
+    current_index = intervals.index(st.session_state.current_interval) if st.session_state.current_interval in intervals else 0
+    
+    chart_interval = st.sidebar.selectbox("Chart Interval", intervals, index=current_index)
     
     # Check if interval changed
     interval_changed = chart_interval != st.session_state.previous_interval
     if interval_changed:
         st.session_state.previous_interval = chart_interval
+        st.session_state.current_interval = chart_interval
         st.session_state.analysis_cache = {}  # Clear cache when interval changes
     
     # Main content
@@ -230,9 +239,16 @@ def main():
         cache_key = f"analysis_{chart_interval}"
         
         # Use cached data if available and not stale (less than 1 minute old)
+        # Don't use cache if user just clicked refresh (last_update is very recent)
+        just_refreshed = (
+            st.session_state.last_update and 
+            (datetime.now() - st.session_state.last_update).seconds < 5
+        )
+        
         use_cache = (
             cache_key in st.session_state.analysis_cache and 
             not interval_changed and
+            not just_refreshed and
             (datetime.now() - st.session_state.analysis_cache[cache_key]['timestamp']).seconds < 60
         )
         
@@ -240,7 +256,8 @@ def main():
             results = st.session_state.analysis_cache[cache_key]['data']
             st.info(f"📊 Using cached data for {chart_interval} timeframe")
         else:
-            with st.spinner(f"Fetching market data for {chart_interval} timeframe..."):
+            spinner_text = f"Fetching fresh market data for {chart_interval} timeframe..." if just_refreshed else f"Fetching market data for {chart_interval} timeframe..."
+            with st.spinner(spinner_text):
                 results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
                 
                 # Cache the results
@@ -251,6 +268,8 @@ def main():
                 
             if interval_changed:
                 st.success(f"📈 Charts updated to {chart_interval} timeframe!")
+            elif just_refreshed:
+                st.success(f"🔄 Data refreshed for {chart_interval} timeframe!")
         
         if results:
             # Create tabs for each symbol
