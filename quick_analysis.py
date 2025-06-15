@@ -93,15 +93,24 @@ Current Sentiment: Market is consolidating
 def main():
     """Main function"""
     print_banner()
-    print(f"{Fore.CYAN}Analyzing BTC and ETH using Binance API...{Style.RESET_ALL}\n")
+    
+    # Check for interval argument
+    interval = "5m"  # default
+    if len(sys.argv) > 1:
+        interval = sys.argv[1]
+        if interval not in ["1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w", "1M"]:
+            print(f"{Fore.RED}Invalid interval. Using default 5m{Style.RESET_ALL}")
+            interval = "5m"
+    
+    print(f"{Fore.CYAN}Analyzing BTC and ETH on {interval} timeframe using Binance API...{Style.RESET_ALL}\n")
     
     try:
         # Initialize analyzer
         analyzer = CryptoAnalyzer()
         
         # Analyze symbols
-        print(f"{Fore.BLUE}Fetching market data...{Style.RESET_ALL}")
-        results = analyzer.analyze_all_symbols()
+        print(f"{Fore.BLUE}Fetching market data for {interval} interval...{Style.RESET_ALL}")
+        results = analyzer.analyze_all_symbols(interval=interval)
         
         if not results:
             print(f"{Fore.RED}❌ Failed to fetch market data{Style.RESET_ALL}")
@@ -125,9 +134,11 @@ def main():
             ))
         
         # Footer
-        print(f"\n{Fore.CYAN + Style.BRIGHT}📊 Analysis completed at {analysis['timestamp']}")
+        print(f"\n{Fore.CYAN + Style.BRIGHT}📊 Analysis completed at {analysis['timestamp']} ({interval} timeframe)")
         print(f"⚠️  This is for educational purposes only. Not financial advice!")
-        print(f"🔄 Run again: python quick_analysis.py")
+        print(f"🔄 Run again: python quick_analysis.py [interval]")
+        print(f"   Available intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M")
+        print(f"   Example: python quick_analysis.py 1h")
         print(f"🌐 Web interface: streamlit run streamlit_app.py")
         print(f"🚨 Real-time alerts: python alert_system.py{Style.RESET_ALL}")
         

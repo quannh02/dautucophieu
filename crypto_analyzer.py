@@ -237,14 +237,14 @@ class CryptoAnalyzer:
             'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
     
-    def analyze_symbol(self, symbol: str) -> Dict:
+    def analyze_symbol(self, symbol: str, interval: str = "5m") -> Dict:
         """
         Perform complete analysis for a symbol
         """
-        logger.info(f"Analyzing {symbol}")
+        logger.info(f"Analyzing {symbol} on {interval} timeframe")
         
         # Get historical data
-        df = self.get_klines(symbol)
+        df = self.get_klines(symbol, interval=interval)
         
         if df.empty:
             return {
@@ -261,10 +261,11 @@ class CryptoAnalyzer:
         return {
             'symbol': symbol,
             'analysis': signals,
-            'data': df
+            'data': df,
+            'interval': interval
         }
     
-    def analyze_all_symbols(self) -> Dict:
+    def analyze_all_symbols(self, interval: str = "5m") -> Dict:
         """
         Analyze all configured symbols
         """
@@ -272,7 +273,7 @@ class CryptoAnalyzer:
         
         for symbol in self.symbols:
             try:
-                results[symbol] = self.analyze_symbol(symbol)
+                results[symbol] = self.analyze_symbol(symbol, interval=interval)
             except Exception as e:
                 logger.error(f"Error analyzing {symbol}: {e}")
                 results[symbol] = {

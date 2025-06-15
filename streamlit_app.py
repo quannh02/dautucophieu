@@ -62,6 +62,8 @@ if 'analyzer' not in st.session_state:
     st.session_state.alert_system = AlertSystem()
     st.session_state.monitoring = False
     st.session_state.last_update = None
+    st.session_state.previous_interval = "5m"
+    st.session_state.analysis_cache = {}
 
 def get_signal_color(signal):
     """Get color for signal display"""
@@ -83,7 +85,7 @@ def format_signal_display(signal, strength=0):
     }
     return f"{emoji_map.get(signal, '⚪')} {signal} (Strength: {strength})"
 
-def create_price_chart(df, symbol):
+def create_price_chart(df, symbol, interval="5m"):
     """Create interactive price chart with technical indicators"""
     fig = make_subplots(
         rows=4, cols=1,
@@ -166,7 +168,7 @@ def create_price_chart(df, symbol):
     
     # Update layout
     fig.update_layout(
-        title=f"{symbol} Technical Analysis",
+        title=f"{symbol} Technical Analysis ({interval})",
         xaxis_rangeslider_visible=False,
         height=800,
         showlegend=False
@@ -212,6 +214,12 @@ def main():
     show_technical_indicators = st.sidebar.checkbox("Show Technical Indicators", value=True)
     chart_interval = st.sidebar.selectbox("Chart Interval", ["5m", "15m", "1h", "4h", "1d"], index=0)
     
+    # Check if interval changed
+    interval_changed = chart_interval != st.session_state.previous_interval
+    if interval_changed:
+        st.session_state.previous_interval = chart_interval
+        st.session_state.analysis_cache = {}  # Clear cache when interval changes
+    
     # Main content
     col1, col2 = st.columns([2, 1])
     
@@ -219,8 +227,30 @@ def main():
         st.subheader("📈 Current Market Analysis")
         
         # Get current analysis
-        with st.spinner("Fetching market data..."):
-            results = st.session_state.analyzer.analyze_all_symbols()
+        cache_key = f"analysis_{chart_interval}"
+        
+        # Use cached data if available and not stale (less than 1 minute old)
+        use_cache = (
+            cache_key in st.session_state.analysis_cache and 
+            not interval_changed and
+            (datetime.now() - st.session_state.analysis_cache[cache_key]['timestamp']).seconds < 60
+        )
+        
+        if use_cache:
+            results = st.session_state.analysis_cache[cache_key]['data']
+            st.info(f"📊 Using cached data for {chart_interval} timeframe")
+        else:
+            with st.spinner(f"Fetching market data for {chart_interval} timeframe..."):
+                results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
+                
+                # Cache the results
+                st.session_state.analysis_cache[cache_key] = {
+                    'data': results,
+                    'timestamp': datetime.now()
+                }
+                
+            if interval_changed:
+                st.success(f"📈 Charts updated to {chart_interval} timeframe!")
         
         if results:
             # Create tabs for each symbol
@@ -278,8 +308,8 @@ def main():
                     
                     # Technical chart
                     if show_technical_indicators and not df.empty:
-                        st.subheader("📊 Technical Analysis Chart")
-                        chart = create_price_chart(df, symbol.replace('USDT', '/USDT'))
+                        st.subheader(f"📊 Technical Analysis Chart ({chart_interval})")
+                        chart = create_price_chart(df, symbol.replace('USDT', '/USDT'), chart_interval)
                         st.plotly_chart(chart, use_container_width=True)
     
     with col2:
@@ -320,6 +350,7 @@ def main():
             f"""
             <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
                 <strong>Monitoring Status:</strong> {status_text}<br>
+                <strong>Chart Interval:</strong> {chart_interval}<br>
                 <strong>Last Update:</strong> {st.session_state.last_update or 'Never'}<br>
                 <strong>Symbols:</strong> BTC/USDT, ETH/USDT
             </div>

@@ -12,7 +12,12 @@ source crypto_env/bin/activate
 case "$1" in
     "quick"|"q")
         echo "📊 Running Quick Analysis..."
-        python quick_analysis.py
+        if [ -n "$2" ]; then
+            echo "Using $2 timeframe..."
+            python quick_analysis.py $2
+        else
+            python quick_analysis.py
+        fi
         ;;
     "monitor"|"m")
         echo "🚨 Starting Real-time Monitoring..."
@@ -38,8 +43,10 @@ case "$1" in
         echo "  install, i  - Install/update dependencies"
         echo ""
         echo "Examples:"
-        echo "  ./run.sh quick     # Get instant analysis"
-        echo "  ./run.sh monitor   # Start monitoring"
-        echo "  ./run.sh web       # Launch web interface"
+        echo "  ./run.sh quick        # Get instant analysis (5m default)"
+        echo "  ./run.sh quick 1h     # Analysis with 1 hour timeframe"
+        echo "  ./run.sh quick 1d     # Analysis with daily timeframe"
+        echo "  ./run.sh monitor      # Start monitoring"
+        echo "  ./run.sh web          # Launch web interface"
         ;;
 esac 
