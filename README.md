@@ -13,6 +13,14 @@ A comprehensive real-time cryptocurrency trading alert system with advanced tech
 - **Williams %R** - Momentum indicator showing overbought/oversold levels
 - **Average True Range (ATR)** - Volatility measurement for stop-loss calculation
 
+### 📰 News Sentiment Analysis
+- **Multi-source news aggregation** from CoinDesk, Cointelegraph, Decrypt, and Bitcoinist
+- **Real-time sentiment analysis** using TextBlob and custom keyword analysis
+- **Crypto-specific relevance filtering** for BTC, ETH, and general crypto news
+- **Market sentiment scoring** with bullish/bearish keyword detection
+- **Trading signal enhancement** by combining technical analysis with news sentiment
+- **Conflict detection** when news sentiment contradicts technical signals
+
 ### 🚨 Alert System
 - **Real-time monitoring** with customizable intervals
 - **Desktop notifications** using system notifications
@@ -33,6 +41,7 @@ A comprehensive real-time cryptocurrency trading alert system with advanced tech
 1. **Command Line** - Quick analysis (`quick_analysis.py`)
 2. **Real-time Console** - Continuous monitoring (`alert_system.py`)
 3. **Web Dashboard** - Beautiful Streamlit interface (`streamlit_app.py`)
+4. **News Analysis** - Standalone news sentiment analysis (`news_analysis.py`)
 
 ## 🛠️ Installation
 
@@ -131,8 +140,8 @@ python quick_analysis.py vi 4h     # Vietnamese, 4 hours
    3. EMA Golden Cross - Strong Long
 ```
 
-### 2. Real-time Monitoring (Console)
-Start continuous monitoring with alerts:
+### 2. Real-time Monitoring (Console) - **🆕 NOW WITH NEWS INTEGRATION!**
+Start continuous monitoring with alerts enhanced by news sentiment:
 
 ```bash
 # Run indefinitely
@@ -149,6 +158,10 @@ python alert_system.py 2h30m   # 2 hours 30 minutes
 
 Features:
 - Checks every 5 minutes (configurable)
+- **🆕 News-enhanced signals**: Technical analysis combined with news sentiment
+- **🆕 Sentiment conflict detection**: Alerts when news contradicts technical signals
+- **🆕 News headlines in alerts**: Top relevant news included in notifications
+- **🆕 Email alerts with news sentiment**: Rich HTML emails with news analysis
 - **Time-limited monitoring** with automatic stop
 - **Countdown timer** showing remaining time
 - Desktop notifications for new signals
@@ -173,6 +186,33 @@ Features:
 - Customizable refresh intervals
 - Mobile-responsive design
 
+### 4. News Sentiment Analysis
+Analyze cryptocurrency news sentiment for trading insights:
+
+```bash
+# Analyze BTC news from last 24 hours (default)
+python news_analysis.py
+
+# Analyze ETH news from last 12 hours
+python news_analysis.py ETH 12
+
+# Analyze general crypto news from last 6 hours
+python news_analysis.py CRYPTO 6
+
+# Or use the run script
+./run.sh news BTC 24
+./run.sh news ETH 12
+./run.sh news CRYPTO 6
+```
+
+Features:
+- **Multi-source aggregation**: CoinDesk, Cointelegraph, Decrypt, Bitcoinist
+- **Sentiment scoring**: Positive, negative, neutral classification
+- **Trading recommendations**: Buy, sell, hold based on news sentiment
+- **Article relevance filtering**: Crypto-specific keyword matching
+- **Market sentiment keywords**: Bullish/bearish indicator detection
+- **Confidence scoring**: Reliability assessment of sentiment analysis
+
 ## 📈 Technical Indicators Explained
 
 ### RSI (Relative Strength Index)
@@ -194,6 +234,36 @@ Features:
 - **Price at Lower Band**: Potentially oversold
 - **Price at Upper Band**: Potentially overbought
 - **Band Squeeze**: Low volatility (potential breakout)
+
+## 📰 News Sentiment Analysis Explained
+
+### How News Integration Works
+The system combines technical analysis with real-time news sentiment to provide enhanced trading signals:
+
+1. **News Aggregation**: Fetches latest articles from multiple crypto news sources
+2. **Relevance Filtering**: Identifies articles relevant to specific cryptocurrencies (BTC, ETH)
+3. **Sentiment Analysis**: Uses TextBlob and custom keyword analysis to determine sentiment
+4. **Signal Enhancement**: Combines news sentiment with technical signals for stronger recommendations
+5. **Conflict Detection**: Alerts when news sentiment contradicts technical analysis
+
+### News Sentiment Levels
+- **VERY_POSITIVE**: Strong bullish news (can upgrade LONG to STRONG_LONG)
+- **POSITIVE**: Moderately bullish news (supports bullish technical signals)
+- **NEUTRAL**: No clear sentiment bias
+- **NEGATIVE**: Moderately bearish news (supports bearish technical signals)
+- **VERY_NEGATIVE**: Strong bearish news (can upgrade SHORT to STRONG_SHORT)
+
+### News Sources
+- **CoinDesk**: Leading cryptocurrency news and analysis
+- **Cointelegraph**: Comprehensive crypto market coverage
+- **Decrypt**: Technology-focused crypto journalism
+- **Bitcoinist**: Bitcoin and altcoin news and insights
+
+### Trading Signal Enhancement
+- **Aligned Signals**: When news sentiment supports technical analysis, signal strength increases
+- **Conflicting Signals**: When news contradicts technical analysis, warnings are issued
+- **News Override**: Strong news sentiment can override neutral technical signals
+- **Confidence Scoring**: News analysis confidence affects overall signal reliability
 
 ## ⚙️ Configuration
 

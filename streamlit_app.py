@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timedelta
 from crypto_analyzer import CryptoAnalyzer
 from alert_system import AlertSystem
+from news_analyzer import NewsAnalyzer
 import threading
 from translations import get_text, get_signal_translation, get_analysis_reason_translation
 
@@ -61,11 +62,13 @@ st.markdown("""
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = CryptoAnalyzer()
     st.session_state.alert_system = AlertSystem()
+    st.session_state.news_analyzer = NewsAnalyzer()
     st.session_state.monitoring = False
     st.session_state.last_update = None
     st.session_state.previous_interval = "5m"
     st.session_state.current_interval = "5m"
     st.session_state.analysis_cache = {}
+    st.session_state.news_cache = {}
     st.session_state.language = "en"
 
 def get_signal_color(signal):
@@ -183,6 +186,112 @@ def create_price_chart(df, symbol, interval="5m"):
     fig.update_yaxes(range=[0, 100], row=2, col=1)
     
     return fig
+
+def get_news_sentiment_color(sentiment):
+    """Get color for news sentiment display"""
+    color_map = {
+        'VERY_POSITIVE': '#28a745',
+        'POSITIVE': '#28a745',
+        'NEUTRAL': '#6c757d',
+        'NEGATIVE': '#dc3545',
+        'VERY_NEGATIVE': '#dc3545'
+    }
+    return color_map.get(sentiment, '#6c757d')
+
+def get_news_sentiment_emoji(sentiment):
+    """Get emoji for news sentiment"""
+    emoji_map = {
+        'VERY_POSITIVE': '🚀',
+        'POSITIVE': '📈',
+        'NEUTRAL': '⚖️',
+        'NEGATIVE': '📉',
+        'VERY_NEGATIVE': '💥'
+    }
+    return emoji_map.get(sentiment, '⚖️')
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_news_analysis(crypto_symbol, hours_back=12):
+    """Get news analysis with caching"""
+    try:
+        return st.session_state.news_analyzer.analyze_crypto_news(crypto_symbol, hours_back)
+    except Exception as e:
+        st.error(f"Error fetching news analysis: {e}")
+        return None
+
+def display_news_analysis(crypto_symbol, lang='en'):
+    """Display news analysis in the sidebar"""
+    st.subheader(f"📰 {crypto_symbol} News Sentiment")
+    
+    with st.spinner("Fetching news..."):
+        news_analysis = get_news_analysis(crypto_symbol, hours_back=12)
+    
+    if news_analysis and news_analysis['articles_analyzed'] > 0:
+        sentiment = news_analysis['overall_sentiment']
+        sentiment_color = get_news_sentiment_color(sentiment)
+        sentiment_emoji = get_news_sentiment_emoji(sentiment)
+        
+        # Overall sentiment
+        st.markdown(
+            f"""
+            <div style="background-color: {sentiment_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {sentiment_color}; margin-bottom: 1rem;">
+                <h4 style="color: {sentiment_color}; margin: 0;">
+                    {sentiment_emoji} {sentiment}
+                </h4>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        # Key metrics
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📊 Articles", news_analysis['articles_analyzed'])
+        with col2:
+            st.metric("🎯 Confidence", f"{news_analysis['trading_recommendation']['confidence']:.1f}%")
+        
+        # Trading recommendation
+        recommendation = news_analysis['trading_recommendation']
+        action_color = '#28a745' if 'BUY' in recommendation['action'] else '#dc3545' if 'SELL' in recommendation['action'] else '#ffc107'
+        
+        st.markdown(
+            f"""
+            <div style="background-color: {action_color}20; padding: 0.5rem; border-radius: 0.25rem; margin: 0.5rem 0;">
+                <strong style="color: {action_color};">🎯 {recommendation['action']}</strong><br>
+                <small>{recommendation['reasoning']}</small>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+        
+        # Sentiment distribution
+        dist = news_analysis['sentiment_distribution']
+        st.write("**📊 Sentiment Distribution:**")
+        st.write(f"🟢 Positive: {dist['positive']} | 🔴 Negative: {dist['negative']} | 🟡 Neutral: {dist['neutral']}")
+        
+        # Top articles
+        if news_analysis['top_articles']:
+            st.write("**📰 Top Headlines:**")
+            for i, article in enumerate(news_analysis['top_articles'][:3], 1):
+                article_info = article['article']
+                sentiment_info = article['sentiment']
+                
+                sentiment_emoji = "🟢" if sentiment_info['sentiment'] == 'positive' else "🔴" if sentiment_info['sentiment'] == 'negative' else "🟡"
+                
+                with st.expander(f"{sentiment_emoji} {article_info['title'][:60]}..."):
+                    st.write(f"**Source:** {article_info['source']}")
+                    st.write(f"**Published:** {article_info['published_date']}")
+                    st.write(f"**Sentiment:** {sentiment_info['sentiment'].title()} (Score: {sentiment_info['polarity']})")
+                    if article_info['summary']:
+                        st.write(f"**Summary:** {article_info['summary'][:200]}...")
+                    if article_info['link']:
+                        st.markdown(f"[Read full article]({article_info['link']})")
+        
+        # News sources
+        if news_analysis['news_sources']:
+            st.write(f"**📰 Sources:** {', '.join(news_analysis['news_sources'])}")
+    
+    else:
+        st.info(f"No recent news found for {crypto_symbol}")
 
 def main():
     # Language selector (at the top)
@@ -331,6 +440,29 @@ def main():
                     with metric_cols[3]:
                         st.metric(get_text("signal_strength", lang), analysis['strength'])
                     
+                    # Add news sentiment indicator
+                    crypto_symbol = symbol.replace('USDT', '')
+                    if crypto_symbol in ['BTC', 'ETH']:
+                        with st.spinner("Fetching news sentiment..."):
+                            news_analysis = get_news_analysis(crypto_symbol, hours_back=12)
+                        
+                        if news_analysis and news_analysis['articles_analyzed'] > 0:
+                            sentiment = news_analysis['overall_sentiment']
+                            sentiment_color = get_news_sentiment_color(sentiment)
+                            sentiment_emoji = get_news_sentiment_emoji(sentiment)
+                            
+                            news_cols = st.columns(3)
+                            with news_cols[0]:
+                                st.markdown(f"""
+                                <div style="background-color: {sentiment_color}20; padding: 0.5rem; border-radius: 0.25rem; text-align: center; margin-top: 1rem;">
+                                    <strong>📰 News Sentiment: <span style="color: {sentiment_color};">{sentiment_emoji} {sentiment}</span></strong>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            with news_cols[1]:
+                                st.metric("📰 Articles", news_analysis['articles_analyzed'])
+                            with news_cols[2]:
+                                st.metric("📊 Confidence", f"{news_analysis['trading_recommendation']['confidence']:.1f}%")
+                    
                     # Entry and exit levels
                     if analysis['signal'] != 'NEUTRAL':
                         entry_cols = st.columns(3)
@@ -348,6 +480,52 @@ def main():
                     for reason in analysis['reasons']:
                         translated_reason = get_analysis_reason_translation(reason, lang)
                         st.write(f"• {translated_reason}")
+                    
+                    # Combined analysis (technical + news)
+                    crypto_symbol = symbol.replace('USDT', '')
+                    if crypto_symbol in ['BTC', 'ETH'] and news_analysis and news_analysis['articles_analyzed'] > 0:
+                        st.subheader("📊 Combined Analysis (Technical + News)")
+                        
+                        # Get news sentiment and technical signal
+                        news_sentiment = news_analysis['overall_sentiment']
+                        tech_signal = analysis['signal']
+                        recommendation = news_analysis['trading_recommendation']['action']
+                        
+                        # Determine if signals align or conflict
+                        aligned = (('LONG' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']) or
+                                  ('SHORT' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
+                                  (tech_signal == 'NEUTRAL' and news_sentiment == 'NEUTRAL'))
+                        
+                        conflicted = (('LONG' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
+                                     ('SHORT' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']))
+                        
+                        if aligned:
+                            st.success("✅ Technical analysis and news sentiment are aligned!")
+                            st.markdown(f"""
+                            <div style="background-color: #28a74520; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                <strong>Technical Signal:</strong> {tech_signal}<br>
+                                <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                <strong>Recommendation:</strong> {recommendation} with increased confidence
+                            </div>
+                            """, unsafe_allow_html=True)
+                        elif conflicted:
+                            st.warning("⚠️ Technical analysis and news sentiment are conflicting!")
+                            st.markdown(f"""
+                            <div style="background-color: #ffc10720; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                <strong>Technical Signal:</strong> {tech_signal}<br>
+                                <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                <strong>Recommendation:</strong> Exercise caution - consider waiting for alignment
+                            </div>
+                            """, unsafe_allow_html=True)
+                        else:
+                            st.info("ℹ️ Technical analysis and news sentiment provide mixed signals")
+                            st.markdown(f"""
+                            <div style="background-color: #17a2b820; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                <strong>Technical Signal:</strong> {tech_signal}<br>
+                                <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                <strong>Recommendation:</strong> Consider both factors in your decision
+                            </div>
+                            """, unsafe_allow_html=True)
                     
                     # Technical chart
                     if show_technical_indicators and not df.empty:
@@ -402,6 +580,18 @@ def main():
             """,
             unsafe_allow_html=True
         )
+        
+        # Add news analysis section
+        st.markdown("---")
+        
+        # Create tabs for news analysis
+        news_tabs = st.tabs(["📰 BTC News", "📰 ETH News"])
+        
+        with news_tabs[0]:
+            display_news_analysis("BTC", lang)
+            
+        with news_tabs[1]:
+            display_news_analysis("ETH", lang)
     
     # Auto-refresh
     if st.session_state.monitoring:

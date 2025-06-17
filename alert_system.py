@@ -13,6 +13,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email_validator import validate_email, EmailNotValidError
 from crypto_analyzer import CryptoAnalyzer
+from news_analyzer import NewsAnalyzer
 
 # Initialize colorama for colored console output
 init(autoreset=True)
@@ -28,6 +29,7 @@ class AlertSystem:
     
     def __init__(self, check_interval: int = 60, max_duration: int = None):
         self.analyzer = CryptoAnalyzer()
+        self.news_analyzer = NewsAnalyzer()
         self.check_interval = check_interval  # seconds
         self.max_duration = max_duration  # seconds (None = run indefinitely)
         self.running = False
@@ -258,6 +260,11 @@ class AlertSystem:
             text_body += f"Strength: {alert['strength']}\n"
             text_body += f"RSI: {alert['rsi']}\n"
             
+            # Add news sentiment info
+            if alert.get('news_sentiment', 'NEUTRAL') != 'NEUTRAL':
+                text_body += f"News Sentiment: {alert['news_sentiment']} ({alert.get('news_articles', 0)} articles)\n"
+                text_body += f"News Confidence: {alert.get('news_confidence', 0)}%\n"
+            
             if alert['signal'] != 'NEUTRAL':
                 text_body += f"Entry Price: ${alert['entry_price']:,.4f}\n"
                 if alert['stop_loss'] > 0:
@@ -280,6 +287,17 @@ class AlertSystem:
                 <p class="price"><strong>Price:</strong> ${alert['price']:,.4f}</p>
                 <p><strong>Strength:</strong> {alert['strength']}</p>
                 <p><strong>RSI:</strong> {alert['rsi']}</p>
+            """
+            
+            # Add news sentiment to HTML
+            if alert.get('news_sentiment', 'NEUTRAL') != 'NEUTRAL':
+                news_color = '#28a745' if 'POSITIVE' in alert['news_sentiment'] else '#dc3545' if 'NEGATIVE' in alert['news_sentiment'] else '#6c757d'
+                html_body += f"""
+                <p style="color: {news_color};"><strong>📰 News Sentiment:</strong> {alert['news_sentiment']} ({alert.get('news_articles', 0)} articles)</p>
+                <p><strong>News Confidence:</strong> {alert.get('news_confidence', 0)}%</p>
+                """
+            
+            html_body += """
             """
             
             if alert['signal'] != 'NEUTRAL':
@@ -366,6 +384,75 @@ class AlertSystem:
         
         print("\n" + "="*80)
     
+    def analyze_with_news(self, symbol: str, technical_analysis: Dict) -> Dict:
+        """Combine technical analysis with news sentiment"""
+        try:
+            # Get crypto symbol for news analysis (remove USDT)
+            crypto_symbol = symbol.replace('USDT', '')
+            if crypto_symbol in ['BTC', 'ETH']:
+                news_analysis = self.news_analyzer.analyze_crypto_news(crypto_symbol, hours_back=12)
+            else:
+                news_analysis = self.news_analyzer.analyze_crypto_news('CRYPTO', hours_back=12)
+            
+            # Combine technical and news signals
+            technical_signal = technical_analysis['signal']
+            news_sentiment = news_analysis['overall_sentiment']
+            
+            # Calculate combined signal strength
+            combined_strength = technical_analysis['strength']
+            news_impact = 0
+            
+            # Adjust signal based on news sentiment
+            if news_sentiment == 'VERY_POSITIVE':
+                news_impact = 2
+            elif news_sentiment == 'POSITIVE':
+                news_impact = 1
+            elif news_sentiment == 'VERY_NEGATIVE':
+                news_impact = -2
+            elif news_sentiment == 'NEGATIVE':
+                news_impact = -1
+            
+            # Enhance technical analysis with news
+            enhanced_analysis = technical_analysis.copy()
+            enhanced_analysis['news_sentiment'] = news_sentiment
+            enhanced_analysis['news_articles'] = news_analysis['articles_analyzed']
+            enhanced_analysis['news_confidence'] = news_analysis.get('confidence', 0)
+            enhanced_analysis['combined_strength'] = max(1, min(10, combined_strength + abs(news_impact)))
+            
+            # Adjust signal based on news alignment
+            if 'LONG' in technical_signal and news_impact > 0:
+                enhanced_analysis['signal'] = 'STRONG_LONG' if news_impact >= 2 else technical_signal
+                enhanced_analysis['reasons'].append(f"📰 News sentiment is {news_sentiment.lower()} - supports bullish outlook")
+            elif 'SHORT' in technical_signal and news_impact < 0:
+                enhanced_analysis['signal'] = 'STRONG_SHORT' if news_impact <= -2 else technical_signal
+                enhanced_analysis['reasons'].append(f"📰 News sentiment is {news_sentiment.lower()} - supports bearish outlook")
+            elif 'LONG' in technical_signal and news_impact < 0:
+                enhanced_analysis['reasons'].append(f"⚠️ News sentiment is {news_sentiment.lower()} - conflicts with technical signal")
+            elif 'SHORT' in technical_signal and news_impact > 0:
+                enhanced_analysis['reasons'].append(f"⚠️ News sentiment is {news_sentiment.lower()} - conflicts with technical signal")
+            elif technical_signal == 'NEUTRAL' and abs(news_impact) >= 2:
+                # Strong news can override neutral technical signal
+                enhanced_analysis['signal'] = 'LONG' if news_impact > 0 else 'SHORT'
+                enhanced_analysis['reasons'] = [f"📰 Strong {news_sentiment.lower()} news sentiment overrides neutral technical signal"]
+                enhanced_analysis['combined_strength'] = abs(news_impact) + 1
+            
+            # Add top news headlines to reasons
+            if news_analysis['top_articles']:
+                enhanced_analysis['top_news'] = news_analysis['top_articles'][:2]  # Top 2 articles
+                for article in enhanced_analysis['top_news']:
+                    enhanced_analysis['reasons'].append(f"📰 {article['title'][:60]}...")
+            
+            return enhanced_analysis
+            
+        except Exception as e:
+            logger.error(f"Error analyzing news for {symbol}: {e}")
+            # Return original technical analysis if news analysis fails
+            technical_analysis['news_sentiment'] = 'NEUTRAL'
+            technical_analysis['news_articles'] = 0
+            technical_analysis['news_confidence'] = 0
+            technical_analysis['combined_strength'] = technical_analysis['strength']
+            return technical_analysis
+
     def check_for_new_signals(self, results: Dict) -> List[Dict]:
         """Check for new or changed signals"""
         new_alerts = []
@@ -374,8 +461,13 @@ class AlertSystem:
             if 'error' in data:
                 continue
                 
-            analysis = data['analysis']
-            current_signal = analysis['signal']
+            # Get technical analysis
+            technical_analysis = data['analysis']
+            
+            # Enhance with news analysis
+            enhanced_analysis = self.analyze_with_news(symbol, technical_analysis)
+            
+            current_signal = enhanced_analysis['signal']
             
             # Check if signal changed or is strong
             previous_signal = self.previous_signals.get(symbol, 'NEUTRAL')
@@ -393,13 +485,16 @@ class AlertSystem:
                     'symbol': symbol,
                     'signal': current_signal,
                     'previous_signal': previous_signal,
-                    'strength': analysis['strength'],
-                    'price': analysis['current_price'],
-                    'entry_price': analysis['entry_price'],
-                    'stop_loss': analysis['stop_loss'],
-                    'take_profit': analysis['take_profit'],
-                    'rsi': analysis['rsi'],
-                    'reasons': analysis['reasons']
+                    'strength': enhanced_analysis['combined_strength'],
+                    'price': enhanced_analysis['current_price'],
+                    'entry_price': enhanced_analysis['entry_price'],
+                    'stop_loss': enhanced_analysis['stop_loss'],
+                    'take_profit': enhanced_analysis['take_profit'],
+                    'rsi': enhanced_analysis['rsi'],
+                    'reasons': enhanced_analysis['reasons'],
+                    'news_sentiment': enhanced_analysis.get('news_sentiment', 'NEUTRAL'),
+                    'news_articles': enhanced_analysis.get('news_articles', 0),
+                    'news_confidence': enhanced_analysis.get('news_confidence', 0)
                 }
                 
                 new_alerts.append(alert)
@@ -454,6 +549,11 @@ class AlertSystem:
             print(f"\n{Fore.YELLOW + Back.RED + Style.BRIGHT}🚨 ALERT: {symbol_clean} - {alert['signal']} 🚨{Style.RESET_ALL}")
             print(f"Previous: {alert['previous_signal']} → Current: {alert['signal']}")
             print(f"Price: ${alert['price']:,.4f} | Strength: {alert['strength']} | RSI: {alert['rsi']}")
+            
+            # Add news sentiment to console output
+            if alert.get('news_sentiment', 'NEUTRAL') != 'NEUTRAL':
+                news_color = Fore.GREEN if 'POSITIVE' in alert['news_sentiment'] else Fore.RED if 'NEGATIVE' in alert['news_sentiment'] else Fore.YELLOW
+                print(f"📰 News Sentiment: {news_color}{alert['news_sentiment']}{Style.RESET_ALL} ({alert.get('news_articles', 0)} articles, {alert.get('news_confidence', 0)}% confidence)")
             
         # Save alerts to history
         self.save_alert_history()

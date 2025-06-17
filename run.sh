@@ -60,6 +60,23 @@ case "$1" in
         echo "📧 Testing Email Configuration..."
         python test_email.py
         ;;
+    "news"|"n")
+        echo "📰 Running News Sentiment Analysis..."
+        
+        # Parse arguments for news analysis
+        crypto_symbol="BTC"
+        hours="24"
+        
+        if [ -n "$2" ]; then
+            crypto_symbol="$2"
+        fi
+        if [ -n "$3" ]; then
+            hours="$3"
+        fi
+        
+        echo "Analyzing $crypto_symbol news from the last $hours hours..."
+        python news_analysis.py $crypto_symbol $hours
+        ;;
     *)
         echo "Usage: ./run.sh [command] [options]"
         echo ""
@@ -67,6 +84,7 @@ case "$1" in
         echo "  quick, q       - Quick analysis of BTC and ETH"
         echo "  monitor, m     - Start real-time monitoring with alerts (optional: duration)"
         echo "  web, w         - Launch web dashboard"
+        echo "  news, n        - Analyze crypto news sentiment (optional: symbol, hours)"
         echo "  install, i     - Install/update dependencies"
         echo "  test-email, te - Test email notification configuration"
         echo ""
@@ -85,6 +103,9 @@ case "$1" in
         echo "  ./run.sh monitor 30m        # Start monitoring for 30 minutes"
         echo "  ./run.sh monitor 2h30m      # Start monitoring for 2 hours 30 minutes"
         echo "  ./run.sh web                # Launch web interface"
+        echo "  ./run.sh news               # Analyze BTC news from last 24 hours"
+        echo "  ./run.sh news ETH 12        # Analyze ETH news from last 12 hours"
+        echo "  ./run.sh news CRYPTO 6      # Analyze general crypto news from last 6 hours"
         echo "  ./run.sh test-email         # Test email configuration"
         echo ""
         echo "Available intervals: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M"
