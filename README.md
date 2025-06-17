@@ -16,6 +16,7 @@ A comprehensive real-time cryptocurrency trading alert system with advanced tech
 ### 🚨 Alert System
 - **Real-time monitoring** with customizable intervals
 - **Desktop notifications** using system notifications
+- **Email notifications** with rich HTML formatting
 - **Console alerts** with colored output
 - **Signal strength scoring** (1-10 scale)
 - **Entry/Exit level calculations** with ATR-based stop-loss and take-profit
@@ -60,11 +61,49 @@ python quick_analysis.py
 
 ## 🚀 Usage
 
+### Startup Script (Recommended)
+Use the convenient startup script for all operations:
+
+```bash
+# Quick analysis (English, 5m default)
+./run.sh quick
+
+# Quick analysis in Vietnamese
+./run.sh quick vi
+
+# Analysis with custom timeframes
+./run.sh quick en 1h        # English, 1 hour
+./run.sh quick vietnamese 4h # Vietnamese, 4 hours
+./run.sh quick 1d           # English (default), daily
+
+# Start monitoring (runs indefinitely)
+./run.sh monitor
+
+# Start monitoring for specific duration
+./run.sh monitor 1h        # Run for 1 hour
+./run.sh monitor 30m       # Run for 30 minutes
+./run.sh monitor 2h30m     # Run for 2 hours 30 minutes
+
+# Launch web interface
+./run.sh web
+
+# Install dependencies
+./run.sh install
+```
+
 ### 1. Quick Analysis (Instant Results)
 Get immediate technical analysis for BTC and ETH:
 
 ```bash
+# English (default)
 python quick_analysis.py
+
+# Vietnamese
+python quick_analysis.py vi
+
+# With custom interval
+python quick_analysis.py 1h        # English, 1 hour
+python quick_analysis.py vi 4h     # Vietnamese, 4 hours
 ```
 
 **Sample Output:**
@@ -96,15 +135,26 @@ python quick_analysis.py
 Start continuous monitoring with alerts:
 
 ```bash
+# Run indefinitely
 python alert_system.py
+
+# Run for specific duration
+python alert_system.py 1h      # 1 hour
+python alert_system.py 30m     # 30 minutes
+python alert_system.py 2h30m   # 2 hours 30 minutes
+
+# Or use the run script
+./run.sh monitor 1h
 ```
 
 Features:
 - Checks every 5 minutes (configurable)
+- **Time-limited monitoring** with automatic stop
+- **Countdown timer** showing remaining time
 - Desktop notifications for new signals
 - Colored console output
 - Alert history saved to JSON
-- Ctrl+C to stop
+- Ctrl+C to stop manually
 
 ### 3. Web Dashboard (Streamlit)
 Launch the beautiful web interface:
@@ -116,6 +166,7 @@ streamlit run streamlit_app.py
 Then open your browser to `http://localhost:8501`
 
 Features:
+- **Multi-language Support**: Switch between English and Vietnamese
 - Interactive charts with technical indicators
 - Real-time price updates
 - Signal history
@@ -250,6 +301,73 @@ def send_email_alert(self, message):
     smtp_port = 587
     # Add your email logic here
 ```
+
+## 📧 Email Notifications
+
+The system now supports email notifications for trading alerts! When enabled, you'll receive beautifully formatted HTML emails with all the trading signal details.
+
+## Setting Up Email Alerts
+
+1. **Copy the configuration file:**
+   ```bash
+   cp config.example config.py
+   ```
+
+2. **Edit `config.py` and configure email settings:**
+   ```python
+   # Enable email alerts
+   ENABLE_EMAIL_ALERTS = True
+   
+   # Email configuration (Gmail example)
+   EMAIL_SMTP_SERVER = "smtp.gmail.com"
+   EMAIL_SMTP_PORT = 587
+   EMAIL_SENDER = "your_email@gmail.com"
+   EMAIL_PASSWORD = "your_app_password"  # Use Gmail App Password, not regular password
+   EMAIL_RECIPIENTS = ["recipient1@gmail.com", "recipient2@gmail.com"]
+   EMAIL_USE_TLS = True
+   ```
+
+3. **For Gmail users:**
+   - Enable 2-factor authentication on your Google account
+   - Generate an App Password: Go to Google Account Settings → Security → App passwords
+   - Use the App Password (not your regular Gmail password) in the `EMAIL_PASSWORD` field
+
+4. **For other email providers:**
+   - Update `EMAIL_SMTP_SERVER` and `EMAIL_SMTP_PORT` according to your provider
+   - Common SMTP settings:
+     - **Outlook/Hotmail:** `smtp-mail.outlook.com`, port `587`
+     - **Yahoo:** `smtp.mail.yahoo.com`, port `587`
+     - **Custom SMTP:** Contact your email provider for settings
+
+## Email Features
+
+- 📧 **Rich HTML emails** with color-coded alerts
+- 🎯 **Multiple recipients** support
+- 🔒 **Secure TLS encryption**
+- 📊 **Complete trading information** including entry/exit levels
+- 🚨 **Batch alerts** - multiple signals in one email
+- ✅ **Email validation** to prevent configuration errors
+
+## Testing Email Setup
+
+You can test your email configuration using the dedicated test script:
+
+```bash
+python test_email.py
+```
+
+This will:
+- ✅ Verify your email configuration
+- 📧 Send a test email with sample trading data
+- 🔧 Provide troubleshooting tips if there are issues
+
+Alternatively, you can test with a real analysis:
+
+```bash
+python quick_analysis.py
+```
+
+If email alerts are enabled and configured correctly, you'll receive an email when trading signals are detected.
 
 ## ⚠️ Disclaimer
 

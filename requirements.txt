@@ -9,4 +9,5 @@ python-binance
 ccxt
 python-dotenv
 colorama
-plyer 
+plyer
+email-validator 

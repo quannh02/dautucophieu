@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from crypto_analyzer import CryptoAnalyzer
 from alert_system import AlertSystem
 import threading
+from translations import get_text, get_signal_translation, get_analysis_reason_translation
 
 # Configure Streamlit page
 st.set_page_config(
@@ -65,6 +66,7 @@ if 'analyzer' not in st.session_state:
     st.session_state.previous_interval = "5m"
     st.session_state.current_interval = "5m"
     st.session_state.analysis_cache = {}
+    st.session_state.language = "en"
 
 def get_signal_color(signal):
     """Get color for signal display"""
@@ -75,7 +77,7 @@ def get_signal_color(signal):
     else:
         return "#ffc107"  # Yellow
 
-def format_signal_display(signal, strength=0):
+def format_signal_display(signal, strength=0, lang='en'):
     """Format signal for display with emojis"""
     emoji_map = {
         'STRONG_LONG': '🟢',
@@ -84,7 +86,9 @@ def format_signal_display(signal, strength=0):
         'SHORT': '🔴',
         'STRONG_SHORT': '🔴'
     }
-    return f"{emoji_map.get(signal, '⚪')} {signal} (Strength: {strength})"
+    translated_signal = get_signal_translation(signal, lang)
+    strength_label = get_text('signal_strength_label', lang)
+    return f"{emoji_map.get(signal, '⚪')} {translated_signal} ({strength_label}: {strength})"
 
 def create_price_chart(df, symbol, interval="5m"):
     """Create interactive price chart with technical indicators"""
@@ -181,25 +185,43 @@ def create_price_chart(df, symbol, interval="5m"):
     return fig
 
 def main():
+    # Language selector (at the top)
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col3:
+        language = st.selectbox(
+            "🌐 Language / Ngôn ngữ",
+            ["English", "Tiếng Việt"],
+            index=0 if st.session_state.language == "en" else 1
+        )
+        
+        # Update language in session state
+        new_lang = "en" if language == "English" else "vi"
+        if new_lang != st.session_state.language:
+            st.session_state.language = new_lang
+            st.rerun()
+    
+    lang = st.session_state.language
+    
     # Header
-    st.markdown('<h1 class="main-header">🚀 Crypto Trading Alert System</h1>', unsafe_allow_html=True)
+    st.markdown(f'<h1 class="main-header">{get_text("app_title", lang)}</h1>', unsafe_allow_html=True)
     
     # Sidebar
-    st.sidebar.header("⚙️ Settings")
+    st.sidebar.header(get_text("settings", lang))
     
     # Monitoring controls
-    st.sidebar.subheader("🔄 Real-time Monitoring")
+    st.sidebar.subheader(get_text("real_time_monitoring", lang))
     
-    if st.sidebar.button("▶️ Start Monitoring" if not st.session_state.monitoring else "⏹️ Stop Monitoring"):
+    monitoring_button_text = get_text("start_monitoring", lang) if not st.session_state.monitoring else get_text("stop_monitoring", lang)
+    if st.sidebar.button(monitoring_button_text):
         if not st.session_state.monitoring:
             st.session_state.monitoring = True
-            st.sidebar.success("Monitoring started!")
+            st.sidebar.success(get_text("monitoring_started", lang))
         else:
             st.session_state.monitoring = False
-            st.sidebar.info("Monitoring stopped!")
+            st.sidebar.info(get_text("monitoring_stopped", lang))
     
     # Manual refresh
-    if st.sidebar.button("🔄 Refresh Data"):
+    if st.sidebar.button(get_text("refresh_data", lang)):
         st.session_state.last_update = datetime.now()
         # Clear cache to force fresh data while keeping current interval
         st.session_state.analysis_cache = {}
@@ -207,20 +229,20 @@ def main():
     
     # Auto-refresh interval
     refresh_interval = st.sidebar.selectbox(
-        "Auto-refresh interval (seconds)",
+        get_text("auto_refresh_interval", lang),
         [30, 60, 300, 600, 900],
         index=2
     )
     
     # Settings
-    st.sidebar.subheader("📊 Chart Settings")
-    show_technical_indicators = st.sidebar.checkbox("Show Technical Indicators", value=True)
+    st.sidebar.subheader(get_text("chart_settings", lang))
+    show_technical_indicators = st.sidebar.checkbox(get_text("show_technical_indicators", lang), value=True)
     
     # Get current index for chart interval to maintain selection
     intervals = ["5m", "15m", "1h", "4h", "1d"]
     current_index = intervals.index(st.session_state.current_interval) if st.session_state.current_interval in intervals else 0
     
-    chart_interval = st.sidebar.selectbox("Chart Interval", intervals, index=current_index)
+    chart_interval = st.sidebar.selectbox(get_text("chart_interval", lang), intervals, index=current_index)
     
     # Check if interval changed
     interval_changed = chart_interval != st.session_state.previous_interval
@@ -233,7 +255,7 @@ def main():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.subheader("📈 Current Market Analysis")
+        st.subheader(get_text("current_market_analysis", lang))
         
         # Get current analysis
         cache_key = f"analysis_{chart_interval}"
@@ -254,9 +276,9 @@ def main():
         
         if use_cache:
             results = st.session_state.analysis_cache[cache_key]['data']
-            st.info(f"📊 Using cached data for {chart_interval} timeframe")
+            st.info(get_text("using_cached_data", lang, interval=chart_interval))
         else:
-            spinner_text = f"Fetching fresh market data for {chart_interval} timeframe..." if just_refreshed else f"Fetching market data for {chart_interval} timeframe..."
+            spinner_text = get_text("fetching_fresh_data", lang, interval=chart_interval) if just_refreshed else get_text("fetching_market_data", lang, interval=chart_interval)
             with st.spinner(spinner_text):
                 results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
                 
@@ -267,9 +289,9 @@ def main():
                 }
                 
             if interval_changed:
-                st.success(f"📈 Charts updated to {chart_interval} timeframe!")
+                st.success(get_text("charts_updated", lang, interval=chart_interval))
             elif just_refreshed:
-                st.success(f"🔄 Data refreshed for {chart_interval} timeframe!")
+                st.success(get_text("data_refreshed", lang, interval=chart_interval))
         
         if results:
             # Create tabs for each symbol
@@ -278,7 +300,7 @@ def main():
             for i, (symbol, data) in enumerate(results.items()):
                 with tabs[i]:
                     if 'error' in data:
-                        st.error(f"❌ Error fetching data for {symbol}: {data['error']}")
+                        st.error(get_text("error_fetching_data", lang, symbol=symbol, error=data['error']))
                         continue
                     
                     analysis = data['analysis']
@@ -290,7 +312,7 @@ def main():
                         f"""
                         <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
                             <h3 style="color: {signal_color}; margin: 0;">
-                                {format_signal_display(analysis['signal'], analysis['strength'])}
+                                {format_signal_display(analysis['signal'], analysis['strength'], lang)}
                             </h3>
                         </div>
                         """,
@@ -300,39 +322,41 @@ def main():
                     # Key metrics
                     metric_cols = st.columns(4)
                     with metric_cols[0]:
-                        st.metric("💰 Current Price", f"${analysis['current_price']:,.4f}")
+                        st.metric(get_text("current_price", lang), f"${analysis['current_price']:,.4f}")
                     with metric_cols[1]:
+                        rsi_status = get_text("oversold", lang) if analysis['rsi'] < 30 else get_text("overbought", lang) if analysis['rsi'] > 70 else get_text("neutral_rsi", lang)
                         st.metric("📈 RSI", f"{analysis['rsi']:.2f}")
                     with metric_cols[2]:
                         st.metric("📊 MACD", f"{analysis['macd']:.6f}")
                     with metric_cols[3]:
-                        st.metric("🎯 Signal Strength", analysis['strength'])
+                        st.metric(get_text("signal_strength", lang), analysis['strength'])
                     
                     # Entry and exit levels
                     if analysis['signal'] != 'NEUTRAL':
                         entry_cols = st.columns(3)
                         with entry_cols[0]:
-                            st.metric("🎯 Entry Price", f"${analysis['entry_price']:,.4f}")
+                            st.metric(get_text("entry_price", lang), f"${analysis['entry_price']:,.4f}")
                         with entry_cols[1]:
                             if analysis['stop_loss'] > 0:
-                                st.metric("🛑 Stop Loss", f"${analysis['stop_loss']:,.4f}")
+                                st.metric(get_text("stop_loss", lang), f"${analysis['stop_loss']:,.4f}")
                         with entry_cols[2]:
                             if analysis['take_profit'] > 0:
-                                st.metric("🎯 Take Profit", f"${analysis['take_profit']:,.4f}")
+                                st.metric(get_text("take_profit", lang), f"${analysis['take_profit']:,.4f}")
                     
                     # Analysis reasons
-                    st.subheader("📋 Analysis Details")
+                    st.subheader(get_text("analysis_details", lang))
                     for reason in analysis['reasons']:
-                        st.write(f"• {reason}")
+                        translated_reason = get_analysis_reason_translation(reason, lang)
+                        st.write(f"• {translated_reason}")
                     
                     # Technical chart
                     if show_technical_indicators and not df.empty:
-                        st.subheader(f"📊 Technical Analysis Chart ({chart_interval})")
+                        st.subheader(f"{get_text('technical_analysis_chart', lang)} ({chart_interval})")
                         chart = create_price_chart(df, symbol.replace('USDT', '/USDT'), chart_interval)
                         st.plotly_chart(chart, use_container_width=True)
     
     with col2:
-        st.subheader("🚨 Alert History")
+        st.subheader(get_text("alert_history", lang))
         
         # Load alert history
         try:
@@ -342,12 +366,13 @@ def main():
                 for alert in reversed(alert_history[-10:]):  # Show last 10 alerts
                     symbol_clean = alert['symbol'].replace('USDT', '/USDT')
                     signal_color = get_signal_color(alert['signal'])
+                    translated_signal = get_signal_translation(alert['signal'], lang)
                     
                     st.markdown(
                         f"""
                         <div style="background-color: {signal_color}10; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid {signal_color};">
                             <strong>{symbol_clean}</strong><br>
-                            <span style="color: {signal_color};">{alert['signal']}</span><br>
+                            <span style="color: {signal_color};">{translated_signal}</span><br>
                             <small>{alert['timestamp']}</small><br>
                             <small>${alert['price']:,.4f}</small>
                         </div>
@@ -355,23 +380,24 @@ def main():
                         unsafe_allow_html=True
                     )
             else:
-                st.info("No alerts yet. Start monitoring to see alerts here.")
+                st.info(get_text("no_alerts_yet", lang))
                 
         except Exception as e:
-            st.error(f"Error loading alert history: {e}")
+            st.error(get_text("error_loading_history", lang, error=str(e)))
         
         # System status
-        st.subheader("📊 System Status")
+        st.subheader(get_text("system_status", lang))
         status_color = "#28a745" if st.session_state.monitoring else "#dc3545"
-        status_text = "🟢 Active" if st.session_state.monitoring else "🔴 Inactive"
+        status_text = get_text("active", lang) if st.session_state.monitoring else get_text("inactive", lang)
+        last_update_text = st.session_state.last_update or get_text("never", lang)
         
         st.markdown(
             f"""
             <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
-                <strong>Monitoring Status:</strong> {status_text}<br>
-                <strong>Chart Interval:</strong> {chart_interval}<br>
-                <strong>Last Update:</strong> {st.session_state.last_update or 'Never'}<br>
-                <strong>Symbols:</strong> BTC/USDT, ETH/USDT
+                <strong>{get_text("monitoring_status", lang)}:</strong> {status_text}<br>
+                <strong>{get_text("chart_interval_status", lang)}:</strong> {chart_interval}<br>
+                <strong>{get_text("last_update", lang)}:</strong> {last_update_text}<br>
+                <strong>{get_text("symbols", lang)}:</strong> BTC/USDT, ETH/USDT
             </div>
             """,
             unsafe_allow_html=True
