@@ -1,499 +1,476 @@
-# 🚀 Crypto Trading Alert System
+# 🚀 Multi-Market Trading Alert System
 
-A comprehensive real-time cryptocurrency trading alert system with advanced technical analysis for BTC and ETH. This system provides professional-grade trading signals using multiple technical indicators and delivers alerts through multiple channels.
+A comprehensive technical analysis and alert system for **cryptocurrency** and **gold market** trading. Combines real-time technical indicators with news sentiment analysis to provide enhanced trading signals.
 
-## ✨ Features
+## 📊 Supported Markets
 
-### 📊 Technical Analysis
-- **RSI (Relative Strength Index)** - Momentum oscillator for overbought/oversold conditions
-- **MACD (Moving Average Convergence Divergence)** - Trend-following momentum indicator
-- **Moving Averages** - SMA 20, SMA 50, EMA 12, EMA 26
-- **Bollinger Bands** - Volatility and trend analysis
-- **Stochastic Oscillator** - Momentum indicator comparing closing price to price range
-- **Williams %R** - Momentum indicator showing overbought/oversold levels
-- **Average True Range (ATR)** - Volatility measurement for stop-loss calculation
+### 📈 Cryptocurrency Markets
+- **BTC/USDT** (Bitcoin)
+- **ETH/USDT** (Ethereum)
+- Data source: Binance API
 
-### 📰 News Sentiment Analysis
-- **Multi-source news aggregation** from CoinDesk, Cointelegraph, Decrypt, and Bitcoinist
-- **Real-time sentiment analysis** using TextBlob and custom keyword analysis
-- **Crypto-specific relevance filtering** for BTC, ETH, and general crypto news
-- **Market sentiment scoring** with bullish/bearish keyword detection
-- **Trading signal enhancement** by combining technical analysis with news sentiment
-- **Conflict detection** when news sentiment contradicts technical signals
+### 🥇 Gold Markets  
+- **GC=F** (COMEX Gold Futures)
+- **GLD** (SPDR Gold Shares ETF)
+- Data source: Yahoo Finance
 
-### 🚨 Alert System
-- **Real-time monitoring** with customizable intervals
-- **Desktop notifications** using system notifications
-- **Email notifications** with rich HTML formatting
-- **Console alerts** with colored output
-- **Signal strength scoring** (1-10 scale)
-- **Entry/Exit level calculations** with ATR-based stop-loss and take-profit
-- **Alert history** with JSON persistence
+## 🌟 Features
 
-### 🎯 Trading Signals
-- **STRONG_LONG** - High confidence buy signal
-- **LONG** - Moderate buy signal
-- **NEUTRAL** - No clear direction
-- **SHORT** - Moderate sell signal
-- **STRONG_SHORT** - High confidence sell signal
+- **📊 Multi-Market Technical Analysis**: Crypto + Gold markets
+- **📰 News Sentiment Analysis**: Multi-source news aggregation with sentiment scoring
+- **🚨 Real-time Alerts**: Desktop and email notifications
+- **🌐 Web Dashboard**: Interactive Streamlit interface
+- **🎯 Price Action Analysis**: Based on proven trading principles
+- **🔔 Smart Signal Enhancement**: Combines technical + news sentiment
+- **🌍 Multi-language Support**: English and Vietnamese
+- **⚡ Multiple Timeframes**: 5m to 1d intervals
 
-### 🌐 Multiple Interfaces
-1. **Command Line** - Quick analysis (`quick_analysis.py`)
-2. **Real-time Console** - Continuous monitoring (`alert_system.py`)
-3. **Web Dashboard** - Beautiful Streamlit interface (`streamlit_app.py`)
-4. **News Analysis** - Standalone news sentiment analysis (`news_analysis.py`)
+## 🛠 Quick Start
 
-## 🛠️ Installation
-
-### Prerequisites
-- Python 3.8 or higher
-- Internet connection for API access
-
-### Quick Setup
-
-1. **Clone or download the project files**
+### 1. Installation
 ```bash
-# Make sure all files are in the same directory
-ls -la
-# You should see: crypto_analyzer.py, alert_system.py, streamlit_app.py, quick_analysis.py, requirements.txt
-```
+# Clone and setup
+git clone <repository-url>
+cd dautucophieu
+./run.sh install
 
-2. **Install dependencies**
-```bash
+# Or manually:
 pip install -r requirements.txt
+python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt')"
 ```
 
-3. **Test the installation**
+### 2. Quick Analysis
+
+#### Cryptocurrency Analysis
 ```bash
-python quick_analysis.py
-```
-
-## 🚀 Usage
-
-### Startup Script (Recommended)
-Use the convenient startup script for all operations:
-
-```bash
-# Quick analysis (English, 5m default)
+# Quick crypto analysis (5m timeframe)
 ./run.sh quick
 
-# Quick analysis in Vietnamese
-./run.sh quick vi
+# 1-hour crypto analysis in Vietnamese
+./run.sh quick vi 1h
 
-# Analysis with custom timeframes
-./run.sh quick en 1h        # English, 1 hour
-./run.sh quick vietnamese 4h # Vietnamese, 4 hours
-./run.sh quick 1d           # English (default), daily
+# Daily crypto analysis  
+./run.sh quick en 1d
+```
 
-# Start monitoring (runs indefinitely)
+#### Gold Market Analysis
+```bash
+# Gold market analysis (1h timeframe default)
+./run.sh gold
+
+# 4-hour gold analysis
+./run.sh gold 4h
+
+# Daily gold analysis in Vietnamese
+./run.sh gold vi 1d
+```
+
+### 3. News Sentiment Analysis
+```bash
+# Analyze crypto news
+./run.sh news BTC 24        # BTC news from last 24 hours
+./run.sh news ETH 12        # ETH news from last 12 hours
+
+# Analyze gold news  
+./run.sh news GOLD 6        # Gold news from last 6 hours
+./run.sh news CRYPTO 24     # General crypto news
+```
+
+### 4. Real-time Monitoring
+```bash
+# Start continuous monitoring (all markets)
 ./run.sh monitor
 
-# Start monitoring for specific duration
-./run.sh monitor 1h        # Run for 1 hour
-./run.sh monitor 30m       # Run for 30 minutes
-./run.sh monitor 2h30m     # Run for 2 hours 30 minutes
+# Monitor for specific duration
+./run.sh monitor 2h         # Monitor for 2 hours
+./run.sh monitor 30m        # Monitor for 30 minutes
+```
 
-# Launch web interface
+### 5. Web Dashboard
+```bash
+# Launch interactive web interface
 ./run.sh web
-
-# Install dependencies
-./run.sh install
+# Open browser at http://localhost:8501
 ```
 
-### 1. Quick Analysis (Instant Results)
-Get immediate technical analysis for BTC and ETH:
+## 📈 Technical Indicators
 
-```bash
-# English (default)
-python quick_analysis.py
+### Universal Indicators (Crypto + Gold)
+- **RSI (14)**: Relative Strength Index
+- **MACD (12,26,9)**: Moving Average Convergence Divergence  
+- **SMA (20,50)**: Simple Moving Averages
+- **EMA (12,26)**: Exponential Moving Averages
+- **Bollinger Bands (20,2)**: Volatility bands
+- **Stochastic Oscillator**: Momentum indicator
+- **Williams %R**: Momentum oscillator
+- **ATR**: Average True Range (volatility)
 
-# Vietnamese
-python quick_analysis.py vi
+### Gold-Specific Indicators
+- **CCI (20)**: Commodity Channel Index
+- **Donchian Channels (20)**: Breakout analysis
+- **ROC (12)**: Rate of Change
+- **OBV**: On-Balance Volume
+- **Price Action Signals**: Support/resistance levels, trend analysis
 
-# With custom interval
-python quick_analysis.py 1h        # English, 1 hour
-python quick_analysis.py vi 4h     # Vietnamese, 4 hours
-```
+## 🥇 Gold Market Analysis Features
 
-**Sample Output:**
-```
-🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀
-🚀 CRYPTO TRADING ANALYZER 🚀
-🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀🚀
+### Technical Analysis Optimized for Gold
+- **Wider Bollinger Bands**: Adjusted for gold volatility (2.5 standard deviations)
+- **Gold-Specific RSI Thresholds**: 25/75 for extreme oversold/overbought
+- **Commodity-Focused Indicators**: CCI and Donchian Channels
+- **Enhanced Risk Management**: 2.5x ATR stops, 4x ATR targets
+- **Price Action Patterns**: Support/resistance, breakouts, trend strength
 
-============================================================
-📊 BTC/USDT ANALYSIS
-============================================================
-🟢 SIGNAL: STRONG_LONG (Strength: 5)
-💰 Current Price: $43,567.8900
-📈 RSI: 45.23 (Neutral)
-📊 MACD: 0.002341
+### Two Gold Instruments
+1. **Gold Futures (GC=F)**
+   - COMEX gold futures contract
+   - Higher volatility and leverage
+   - Real-time futures pricing
+   
+2. **Gold ETF (GLD)**  
+   - SPDR Gold Shares ETF
+   - More stable, less volatile
+   - Stock market hours
 
-🎯 TRADING LEVELS:
-   Entry: $43,567.89
-   Stop Loss: $42,891.45
-   Take Profit: $44,583.12
+### Gold-Specific Features
+- **Breakout Detection**: Donchian channel breakouts
+- **Trend Strength Analysis**: Moving average slopes and crossovers  
+- **Volatility Assessment**: ATR-based volatility analysis
+- **Momentum Shifts**: Higher highs/lower lows detection
+- **Key Level Analysis**: 20-period support/resistance levels
 
-📋 ANALYSIS DETAILS:
-   1. MACD Bullish Crossover - Long Signal
-   2. Price Above Moving Averages - Bullish
-   3. EMA Golden Cross - Strong Long
-```
+## 📰 News Sentiment Analysis
 
-### 2. Real-time Monitoring (Console) - **🆕 NOW WITH NEWS INTEGRATION!**
-Start continuous monitoring with alerts enhanced by news sentiment:
+### Crypto News Sources
+- **CoinDesk**: Leading cryptocurrency news
+- **Cointelegraph**: Comprehensive crypto coverage
+- **Decrypt**: Technology-focused journalism  
+- **Bitcoinist**: Bitcoin and altcoin insights
 
-```bash
-# Run indefinitely
-python alert_system.py
+### Gold News Sources
+- **MarketWatch**: Financial and commodity news
+- **Kitco News**: Precious metals specialist
+- **CoinDesk**: Also covers digital gold trends
+- **Cointelegraph**: Crypto-gold correlations
 
-# Run for specific duration
-python alert_system.py 1h      # 1 hour
-python alert_system.py 30m     # 30 minutes
-python alert_system.py 2h30m   # 2 hours 30 minutes
+### Sentiment Analysis Features
+- **Multi-source Aggregation**: 6 major news sources
+- **Relevance Filtering**: Asset-specific keyword matching
+- **Sentiment Scoring**: TextBlob + custom keyword analysis
+- **Confidence Metrics**: Reliability assessment
+- **Trading Recommendations**: Buy/sell/hold based on sentiment
+- **Signal Enhancement**: Combines with technical analysis
 
-# Or use the run script
-./run.sh monitor 1h
-```
+### News Integration
+- **Aligned Signals**: News supports technical analysis (higher confidence)
+- **Conflicting Signals**: News contradicts technical (warning issued)
+- **News Override**: Strong news can override neutral technical signals
+- **Multi-timeframe**: 1-168 hours of historical analysis
 
-Features:
-- Checks every 5 minutes (configurable)
-- **🆕 News-enhanced signals**: Technical analysis combined with news sentiment
-- **🆕 Sentiment conflict detection**: Alerts when news contradicts technical signals
-- **🆕 News headlines in alerts**: Top relevant news included in notifications
-- **🆕 Email alerts with news sentiment**: Rich HTML emails with news analysis
-- **Time-limited monitoring** with automatic stop
-- **Countdown timer** showing remaining time
-- Desktop notifications for new signals
-- Colored console output
-- Alert history saved to JSON
-- Ctrl+C to stop manually
+## 🎯 Signal Types and Strength
 
-### 3. Web Dashboard (Streamlit)
-Launch the beautiful web interface:
+### Signal Categories
+- **STRONG_LONG**: High confidence bullish signal (strength 4-10)
+- **LONG**: Moderate bullish signal (strength 2-3)
+- **NEUTRAL**: No clear direction (strength 0-1)
+- **SHORT**: Moderate bearish signal (strength 2-3)
+- **STRONG_SHORT**: High confidence bearish signal (strength 4-10)
 
-```bash
-streamlit run streamlit_app.py
-```
+### Signal Enhancement
+Technical signals are enhanced with news sentiment:
+- **Aligned**: Technical + news in same direction → Increased strength
+- **Conflicted**: Technical vs news opposite → Warning flag
+- **News-driven**: Strong news overrides weak technical → New signal
 
-Then open your browser to `http://localhost:8501`
+### Gold vs Crypto Signal Differences
+**Gold Markets:**
+- More conservative thresholds (25/75 RSI)
+- Wider stop losses (2.5x ATR)
+- Better risk/reward ratios (4x ATR targets)
+- Commodity-specific indicators (CCI, Donchian)
 
-Features:
-- **Multi-language Support**: Switch between English and Vietnamese
-- Interactive charts with technical indicators
-- Real-time price updates
-- Signal history
-- Customizable refresh intervals
-- Mobile-responsive design
+**Crypto Markets:**
+- Standard thresholds (30/70 RSI)
+- Standard stop losses (2x ATR)  
+- Standard targets (3x ATR)
+- Crypto-optimized indicators
 
-### 4. News Sentiment Analysis
-Analyze cryptocurrency news sentiment for trading insights:
+## 🚨 Alert System
 
-```bash
-# Analyze BTC news from last 24 hours (default)
-python news_analysis.py
+### Real-time Monitoring
+- **Multi-market**: Monitors both crypto and gold simultaneously
+- **Smart Alerts**: Only triggers on signal changes or strong signals
+- **Multiple Channels**: Desktop notifications + email alerts
+- **Enhanced Notifications**: Includes news sentiment in alerts
+- **Alert History**: Persistent storage of all alerts
 
-# Analyze ETH news from last 12 hours
-python news_analysis.py ETH 12
+### Alert Triggers
+- Signal changes (NEUTRAL → LONG, LONG → SHORT, etc.)
+- Strong signals (STRONG_LONG, STRONG_SHORT)
+- New signals from neutral state
+- News sentiment conflicts with technical analysis
 
-# Analyze general crypto news from last 6 hours
-python news_analysis.py CRYPTO 6
+### Notification Content
+- Market type (crypto/gold) and symbol
+- Signal type and strength
+- Current price and key metrics (RSI, MACD)
+- Entry/exit levels if applicable
+- News sentiment summary
+- Reasoning behind the signal
 
-# Or use the run script
-./run.sh news BTC 24
-./run.sh news ETH 12
-./run.sh news CRYPTO 6
-```
+## 🌐 Web Dashboard
 
-Features:
-- **Multi-source aggregation**: CoinDesk, Cointelegraph, Decrypt, Bitcoinist
-- **Sentiment scoring**: Positive, negative, neutral classification
-- **Trading recommendations**: Buy, sell, hold based on news sentiment
-- **Article relevance filtering**: Crypto-specific keyword matching
-- **Market sentiment keywords**: Bullish/bearish indicator detection
-- **Confidence scoring**: Reliability assessment of sentiment analysis
+### Multi-Market Interface
+- **Market Tabs**: Separate tabs for Crypto and Gold markets
+- **Real-time Data**: Auto-refreshing price and indicator data
+- **Interactive Charts**: Plotly-based technical analysis charts
+- **News Integration**: Sentiment indicators and article summaries
+- **Combined Analysis**: Shows technical vs news alignment
 
-## 📈 Technical Indicators Explained
-
-### RSI (Relative Strength Index)
-- **< 30**: Oversold (potential buy signal)
-- **> 70**: Overbought (potential sell signal)
-- **30-70**: Neutral zone
-
-### MACD (Moving Average Convergence Divergence)
-- **Bullish Crossover**: MACD line crosses above signal line
-- **Bearish Crossover**: MACD line crosses below signal line
-- **Histogram**: Shows momentum strength
-
-### Moving Averages
-- **Golden Cross**: Short MA crosses above long MA (bullish)
-- **Death Cross**: Short MA crosses below long MA (bearish)
-- **Price vs MA**: Price above/below moving averages indicates trend
-
-### Bollinger Bands
-- **Price at Lower Band**: Potentially oversold
-- **Price at Upper Band**: Potentially overbought
-- **Band Squeeze**: Low volatility (potential breakout)
-
-## 📰 News Sentiment Analysis Explained
-
-### How News Integration Works
-The system combines technical analysis with real-time news sentiment to provide enhanced trading signals:
-
-1. **News Aggregation**: Fetches latest articles from multiple crypto news sources
-2. **Relevance Filtering**: Identifies articles relevant to specific cryptocurrencies (BTC, ETH)
-3. **Sentiment Analysis**: Uses TextBlob and custom keyword analysis to determine sentiment
-4. **Signal Enhancement**: Combines news sentiment with technical signals for stronger recommendations
-5. **Conflict Detection**: Alerts when news sentiment contradicts technical analysis
-
-### News Sentiment Levels
-- **VERY_POSITIVE**: Strong bullish news (can upgrade LONG to STRONG_LONG)
-- **POSITIVE**: Moderately bullish news (supports bullish technical signals)
-- **NEUTRAL**: No clear sentiment bias
-- **NEGATIVE**: Moderately bearish news (supports bearish technical signals)
-- **VERY_NEGATIVE**: Strong bearish news (can upgrade SHORT to STRONG_SHORT)
-
-### News Sources
-- **CoinDesk**: Leading cryptocurrency news and analysis
-- **Cointelegraph**: Comprehensive crypto market coverage
-- **Decrypt**: Technology-focused crypto journalism
-- **Bitcoinist**: Bitcoin and altcoin news and insights
-
-### Trading Signal Enhancement
-- **Aligned Signals**: When news sentiment supports technical analysis, signal strength increases
-- **Conflicting Signals**: When news contradicts technical analysis, warnings are issued
-- **News Override**: Strong news sentiment can override neutral technical signals
-- **Confidence Scoring**: News analysis confidence affects overall signal reliability
+### Dashboard Features
+- **Multi-language**: English/Vietnamese interface
+- **Customizable Intervals**: 5m to 1d timeframes
+- **Technical Charts**: Full candlestick charts with indicators
+- **Alert History**: Recent signals and their outcomes
+- **System Status**: Monitoring state and last update times
+- **Mobile Responsive**: Works on desktop and mobile devices
 
 ## ⚙️ Configuration
 
-### Customizing Symbols
-Edit `crypto_analyzer.py` to add more trading pairs:
-
+### Crypto Symbols (Binance)
+Edit `crypto_analyzer.py`:
 ```python
-self.symbols = ["BTCUSDT", "ETHUSDT", "ADAUSDT", "DOTUSDT"]
+self.symbols = ["BTCUSDT", "ETHUSDT", "ADAUSDT"]  # Add more pairs
 ```
 
-### Adjusting Alert Frequency
-Modify `alert_system.py`:
-
+### Gold Symbols (Yahoo Finance)  
+Edit `gold_analyzer.py`:
 ```python
-alert_system = AlertSystem(check_interval=300)  # 300 seconds = 5 minutes
+self.symbols = {
+    "GC=F": "Gold Futures",
+    "GLD": "Gold ETF", 
+    "GOLD": "Additional Gold ETF"  # Add more gold instruments
+}
 ```
 
-### Changing Technical Parameters
-In `crypto_analyzer.py`, adjust indicator periods:
-
+### Alert Settings
+Edit `alert_system.py`:
 ```python
-# RSI period
-df['rsi'] = ta.momentum.rsi(df['close'], window=14)  # Default: 14
-
-# Moving average windows
-df['sma_20'] = ta.trend.sma_indicator(df['close'], window=20)  # Default: 20
-df['sma_50'] = ta.trend.sma_indicator(df['close'], window=50)  # Default: 50
+alert_system = AlertSystem(check_interval=300)  # 5 minutes
 ```
 
-## 📊 Signal Interpretation
+### Technical Parameters
 
-### Signal Strength Scoring
-- **Strength 1-2**: Weak signal, use with caution
-- **Strength 3-4**: Moderate signal, good for confirmation
-- **Strength 5-7**: Strong signal, reliable for trading
-- **Strength 8-10**: Very strong signal, high confidence
+**Crypto Settings:**
+```python
+# RSI thresholds
+oversold = 30
+overbought = 70
 
-### Risk Management
-- **Stop Loss**: Calculated using 2x ATR below entry (long) or above entry (short)
-- **Take Profit**: Calculated using 3x ATR above entry (long) or below entry (short)
-- **Position Sizing**: Always use proper position sizing (risk 1-2% of capital per trade)
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Import Errors**
-```bash
-pip install --upgrade -r requirements.txt
+# Stop loss/take profit
+stop_loss_atr = 2.0
+take_profit_atr = 3.0
 ```
 
-2. **API Connection Issues**
-- Check internet connection
-- Binance API might be temporarily unavailable
-- Try again after a few minutes
+**Gold Settings:**
+```python  
+# RSI thresholds (more conservative)
+oversold = 25  
+overbought = 75
 
-3. **Missing Dependencies**
-```bash
-pip install pandas numpy ta requests streamlit plotly colorama plyer
+# Stop loss/take profit (wider for volatility)
+stop_loss_atr = 2.5
+take_profit_atr = 4.0
 ```
 
-4. **Permission Errors (macOS/Linux)**
-```bash
-chmod +x quick_analysis.py
-python3 quick_analysis.py
-```
+## 📊 Usage Examples
 
-### Performance Optimization
-- Reduce check interval for faster updates (higher API usage)
-- Increase interval to reduce API calls
-- Use fewer technical indicators for faster computation
+### Multi-Market Analysis Workflow
 
-## 📈 Advanced Usage
+1. **Morning Market Check**:
+   ```bash
+   # Quick overview of all markets
+   ./run.sh quick en 1h      # Crypto hourly
+   ./run.sh gold en 1h       # Gold hourly
+   ./run.sh news CRYPTO 12   # Overnight crypto news
+   ./run.sh news GOLD 12     # Overnight gold news
+   ```
+
+2. **Day Trading Setup**:
+   ```bash
+   # Start real-time monitoring
+   ./run.sh monitor 8h       # Monitor for trading day
+   
+   # Or use web interface
+   ./run.sh web              # Interactive dashboard
+   ```
+
+3. **Swing Trading Analysis**:
+   ```bash
+   # Daily timeframe analysis
+   ./run.sh quick en 1d      # Daily crypto trends
+   ./run.sh gold en 1d       # Daily gold trends
+   ./run.sh news CRYPTO 48   # 2-day news sentiment
+   ./run.sh news GOLD 48     # 2-day gold news
+   ```
+
+4. **Correlation Analysis**:
+   ```bash
+   # Compare crypto vs gold
+   ./run.sh quick en 4h && ./run.sh gold en 4h
+   ```
+
+### Integration with Trading Platforms
+
+The system provides:
+- **Entry/Exit Levels**: Calculated stop loss and take profit levels
+- **Risk Management**: ATR-based position sizing guidance
+- **Market Context**: News sentiment adds fundamental context
+- **Multi-timeframe**: Various timeframes for different strategies
+
+## 🔧 Advanced Features
 
 ### Custom Indicators
-Add your own indicators in `crypto_analyzer.py`:
+Add your own indicators in the analyzer files:
 
+**For Crypto** (`crypto_analyzer.py`):
 ```python
 def calculate_custom_indicator(self, df):
-    # Your custom indicator logic here
-    df['custom_indicator'] = your_calculation
+    df['custom'] = your_calculation
     return df
 ```
 
-### Multiple Timeframes
-Analyze different timeframes:
+**For Gold** (`gold_analyzer.py`):
+```python  
+def calculate_gold_specific_indicator(self, df):
+    df['gold_custom'] = your_gold_calculation
+    return df
+```
 
+### News Source Customization
+Add new news sources in `news_analyzer.py`:
 ```python
-# In crypto_analyzer.py
-df_5m = self.get_klines(symbol, interval="5m")
-df_1h = self.get_klines(symbol, interval="1h")
-df_1d = self.get_klines(symbol, interval="1d")
+self.news_sources['new_source'] = {
+    'rss': 'https://newssite.com/feed',
+    'name': 'New Source'
+}
 ```
 
-### Email Alerts
-Add email notifications in `alert_system.py`:
-
+### Multi-timeframe Analysis
 ```python
-import smtplib
-from email.mime.text import MIMEText
-
-def send_email_alert(self, message):
-    # Email configuration
-    smtp_server = "smtp.gmail.com"
-    smtp_port = 587
-    # Add your email logic here
+# Analyze multiple timeframes
+timeframes = ["5m", "1h", "4h", "1d"]
+for tf in timeframes:
+    crypto_results = analyzer.analyze_all_symbols(interval=tf)
+    gold_results = gold_analyzer.analyze_all_symbols(interval=tf)
 ```
 
-## 📧 Email Notifications
+## 🚨 Risk Management
 
-The system now supports email notifications for trading alerts! When enabled, you'll receive beautifully formatted HTML emails with all the trading signal details.
+### Position Sizing
+- **ATR-based Stops**: Dynamic stop losses based on market volatility
+- **Risk/Reward**: Minimum 1:1.5 ratio (crypto), 1:1.6 (gold)
+- **Position Size**: Risk 1-2% of capital per trade
 
-## Setting Up Email Alerts
+### Signal Validation
+- **Multiple Confirmations**: Require 2+ indicators for strong signals
+- **News Alignment**: Higher confidence when news supports technical
+- **Timeframe Consensus**: Check multiple timeframes
+- **Market Context**: Consider overall market conditions
 
-1. **Copy the configuration file:**
-   ```bash
-   cp config.example config.py
-   ```
+### Gold-Specific Risks
+- **Higher Volatility**: Gold can have sudden moves
+- **News Sensitivity**: Reacts strongly to economic data
+- **Session Differences**: Futures (24/7) vs ETF (market hours)
+- **Leverage Warning**: Futures contracts are leveraged
 
-2. **Edit `config.py` and configure email settings:**
-   ```python
-   # Enable email alerts
-   ENABLE_EMAIL_ALERTS = True
-   
-   # Email configuration (Gmail example)
-   EMAIL_SMTP_SERVER = "smtp.gmail.com"
-   EMAIL_SMTP_PORT = 587
-   EMAIL_SENDER = "your_email@gmail.com"
-   EMAIL_PASSWORD = "your_app_password"  # Use Gmail App Password, not regular password
-   EMAIL_RECIPIENTS = ["recipient1@gmail.com", "recipient2@gmail.com"]
-   EMAIL_USE_TLS = True
-   ```
+### Crypto-Specific Risks  
+- **Extreme Volatility**: Crypto can move 10%+ in minutes
+- **24/7 Markets**: No closing bell, constant monitoring needed
+- **News Impact**: Social media and regulation news
+- **Liquidity**: Some pairs may have low liquidity
 
-3. **For Gmail users:**
-   - Enable 2-factor authentication on your Google account
-   - Generate an App Password: Go to Google Account Settings → Security → App passwords
-   - Use the App Password (not your regular Gmail password) in the `EMAIL_PASSWORD` field
+## 🛠 Troubleshooting
 
-4. **For other email providers:**
-   - Update `EMAIL_SMTP_SERVER` and `EMAIL_SMTP_PORT` according to your provider
-   - Common SMTP settings:
-     - **Outlook/Hotmail:** `smtp-mail.outlook.com`, port `587`
-     - **Yahoo:** `smtp.mail.yahoo.com`, port `587`
-     - **Custom SMTP:** Contact your email provider for settings
+### Common Issues
 
-## Email Features
-
-- 📧 **Rich HTML emails** with color-coded alerts
-- 🎯 **Multiple recipients** support
-- 🔒 **Secure TLS encryption**
-- 📊 **Complete trading information** including entry/exit levels
-- 🚨 **Batch alerts** - multiple signals in one email
-- ✅ **Email validation** to prevent configuration errors
-
-## Testing Email Setup
-
-You can test your email configuration using the dedicated test script:
-
+**Installation Problems:**
 ```bash
-python test_email.py
+# Reinstall dependencies
+./run.sh install
+
+# Manual installation
+pip install --upgrade -r requirements.txt
 ```
 
-This will:
-- ✅ Verify your email configuration
-- 📧 Send a test email with sample trading data
-- 🔧 Provide troubleshooting tips if there are issues
+**Data Fetching Issues:**
+- **Binance API**: Check internet connection, try again later
+- **Yahoo Finance**: Some symbols may be delisted or renamed
+- **News Sources**: RSS feeds may be temporarily unavailable
 
-Alternatively, you can test with a real analysis:
-
+**Gold Data Issues:**
 ```bash
-python quick_analysis.py
+# Test gold analyzer
+python -c "from gold_analyzer import GoldAnalyzer; g = GoldAnalyzer(); print('OK')"
+
+# Test specific symbol
+python gold_analysis.py 1h
 ```
 
-If email alerts are enabled and configured correctly, you'll receive an email when trading signals are detected.
+**Performance Optimization:**
+- Reduce monitoring frequency for less API usage
+- Use longer timeframes for swing trading
+- Cache results to reduce redundant calculations
 
-## ⚠️ Disclaimer
+## 📚 Educational Resources
 
-**THIS SOFTWARE IS FOR EDUCATIONAL PURPOSES ONLY**
+### Technical Analysis Concepts
+- **RSI**: Measures momentum, 0-100 scale
+- **MACD**: Trend following indicator with signal line
+- **Bollinger Bands**: Volatility-based support/resistance
+- **ATR**: Measures market volatility for stop placement
 
-- This is not financial advice
-- Cryptocurrency trading involves significant risk
-- Past performance does not guarantee future results
-- Always do your own research (DYOR)
-- Never invest more than you can afford to lose
-- Consider consulting with a financial advisor
+### Gold Market Fundamentals
+- **Economic Indicators**: GDP, inflation, interest rates
+- **Currency Correlation**: USD strength vs gold prices
+- **Safe Haven**: Gold performance during market stress
+- **Physical vs Paper**: Futures vs ETF differences
 
-## 📋 API Rate Limits
+### Risk Management
+- **Position Sizing**: Never risk more than 2% per trade
+- **Stop Losses**: Always use stops, no exceptions
+- **Diversification**: Don't put all capital in one market
+- **Emotion Control**: Follow system signals, avoid FOMO
 
-### Binance API Limits
-- **Weight limit**: 1200 per minute
-- **Order limit**: 10 per second
-- **This system**: Uses ~2-4 weight per analysis cycle
+## ⚠️ Disclaimers
 
-### Staying Within Limits
-- Default 5-minute intervals are safe
-- Avoid intervals less than 30 seconds
-- Monitor console for rate limit warnings
+- **Educational Purpose**: This system is for learning and research only
+- **Not Financial Advice**: Always do your own research and consult professionals
+- **Past Performance**: Historical results don't guarantee future performance
+- **Risk Warning**: Trading involves substantial risk of loss
+- **Market Hours**: Consider different trading sessions for various markets
+- **Regulation**: Ensure compliance with local trading regulations
 
 ## 🤝 Contributing
 
-Feel free to contribute improvements:
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/gold-analysis`)
+3. Commit changes (`git commit -m 'Add gold analysis'`)
+4. Push to branch (`git push origin feature/gold-analysis`)
+5. Open Pull Request
 
-1. Add new technical indicators
-2. Implement additional alert channels (Discord, Telegram, etc.)
-3. Add more cryptocurrency pairs
-4. Improve the web interface
-5. Add backtesting functionality
+### Development Guidelines
+- **Code Quality**: Follow PEP 8 style guidelines
+- **Testing**: Test all new features thoroughly
+- **Documentation**: Update README for new features
+- **Compatibility**: Ensure backward compatibility
 
-## 📞 Support
+## 📄 License
 
-If you encounter issues:
-
-1. Check the troubleshooting section
-2. Ensure all dependencies are installed
-3. Verify internet connection
-4. Check Binance API status
-
-## 🎯 Roadmap
-
-Future features planned:
-- [ ] Backtesting engine
-- [ ] Portfolio tracking
-- [ ] More exchanges (Coinbase, Kraken)
-- [ ] Machine learning signals
-- [ ] Mobile app
-- [ ] Discord/Telegram bots
-- [ ] Advanced charting tools
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
-**Happy Trading! 🚀📈**
+**Happy Trading! 🚀📈🥇**
 
-Remember: The best traders are those who manage risk properly and never stop learning. 
+*Remember: The best trading system is the one you understand and can execute consistently. Start with paper trading to validate signals before risking real capital.* 

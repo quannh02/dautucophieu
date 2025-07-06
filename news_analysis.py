@@ -16,7 +16,7 @@ def print_banner():
     """Print application banner"""
     print(f"{Fore.CYAN + Style.BRIGHT}")
     print("📰" * 20)
-    print(f"📰 CRYPTO NEWS SENTIMENT ANALYZER 📰")
+    print(f"📰 MULTI-ASSET NEWS SENTIMENT ANALYZER 📰")
     print("📰" * 20)
     print(f"{Style.RESET_ALL}")
 
@@ -109,8 +109,8 @@ def main():
     
     if len(sys.argv) > 1:
         crypto_symbol = sys.argv[1].upper()
-        if crypto_symbol not in ['BTC', 'ETH', 'CRYPTO']:
-            print(f"{Fore.YELLOW}⚠️ Supported symbols: BTC, ETH, CRYPTO. Using BTC as default.{Style.RESET_ALL}")
+        if crypto_symbol not in ['BTC', 'ETH', 'CRYPTO', 'GOLD']:
+            print(f"{Fore.YELLOW}⚠️ Supported symbols: BTC, ETH, CRYPTO, GOLD. Using BTC as default.{Style.RESET_ALL}")
             crypto_symbol = 'BTC'
     
     if len(sys.argv) > 2:
@@ -139,8 +139,9 @@ def main():
         # Footer
         print(f"\n{Fore.CYAN + Style.BRIGHT}📊 Analysis completed successfully!{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}⚠️ This analysis is for informational purposes only. Not financial advice!{Style.RESET_ALL}")
-        print(f"{Fore.CYAN}🔄 Run again: python news_analysis.py [BTC|ETH|CRYPTO] [hours]{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}🔄 Run again: python news_analysis.py [BTC|ETH|CRYPTO|GOLD] [hours]{Style.RESET_ALL}")
         print(f"{Fore.CYAN}📈 Example: python news_analysis.py BTC 12{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}📈 Example: python news_analysis.py GOLD 6{Style.RESET_ALL}")
         print(f"{Fore.CYAN}🚨 Real-time alerts: python alert_system.py{Style.RESET_ALL}")
         
     except KeyboardInterrupt:

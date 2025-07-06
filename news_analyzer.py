@@ -40,14 +40,25 @@ class NewsAnalyzer:
             'bitcoinist': {
                 'rss': 'https://bitcoinist.com/feed/',
                 'name': 'Bitcoinist'
+            },
+            'marketwatch': {
+                'rss': 'https://feeds.marketwatch.com/marketwatch/marketpulse/',
+                'name': 'MarketWatch'
+            },
+            'kitco': {
+                'rss': 'https://www.kitco.com/rss/KitcoNews.xml',
+                'name': 'Kitco News'
             }
         }
         
-        # Keywords for different cryptocurrencies
+        # Keywords for different assets
         self.crypto_keywords = {
             'BTC': ['bitcoin', 'btc', 'bitcoin price', 'bitcoin market'],
             'ETH': ['ethereum', 'eth', 'ethereum price', 'ethereum market', 'vitalik'],
-            'CRYPTO': ['cryptocurrency', 'crypto', 'digital currency', 'blockchain', 'defi', 'nft']
+            'CRYPTO': ['cryptocurrency', 'crypto', 'digital currency', 'blockchain', 'defi', 'nft'],
+            'GOLD': ['gold', 'gold price', 'gold market', 'precious metals', 'bullion', 'xau', 'gold futures', 'comex gold', 'spot gold', 'gold etf'],
+            'GC=F': ['gold futures', 'comex gold', 'gc=f', 'gold contract', 'futures gold'],
+            'GLD': ['gold etf', 'spdr gold', 'gld', 'gold shares', 'gold fund']
         }
         
         # Market sentiment keywords

@@ -129,6 +129,17 @@ TRANSLATIONS = {
         'web_interface': '🌐 Web interface: streamlit run streamlit_app.py',
         'real_time_alerts': '🚨 Real-time alerts: python alert_system.py',
         
+        # Gold market specific terms
+        'gold_market_analysis': 'Gold Market Analysis',
+        'gold_futures': 'Gold Futures (GC=F)',
+        'gold_etf': 'Gold ETF (GOLD)',
+        'gold_analyzer': 'GOLD MARKET ANALYZER',
+        'precious_metals': 'Precious Metals',
+        'commodity_analysis': 'Commodity Analysis',
+        'gold_price': 'Gold Price',
+        'cci_indicator': 'CCI',
+        'atr_indicator': 'ATR',
+        
         # Command line
         'analyzing_symbols': 'Analyzing BTC and ETH on {interval} timeframe using Binance API...',
         'fetching_data': 'Fetching market data for {interval} interval...',
@@ -263,6 +274,17 @@ TRANSLATIONS = {
         'example_usage': 'Ví dụ: python quick_analysis.py 1h',
         'web_interface': '🌐 Giao diện web: streamlit run streamlit_app.py',
         'real_time_alerts': '🚨 Cảnh báo thời gian thực: python alert_system.py',
+        
+        # Gold market specific terms
+        'gold_market_analysis': 'Phân Tích Thị Trường Vàng',
+        'gold_futures': 'Hợp Đồng Tương Lai Vàng (GC=F)',
+        'gold_etf': 'Quỹ ETF Vàng (GOLD)',
+        'gold_analyzer': 'PHÂN TÍCH THỊ TRƯỜNG VÀNG',
+        'precious_metals': 'Kim Loại Quý',
+        'commodity_analysis': 'Phân Tích Hàng Hóa',
+        'gold_price': 'Giá Vàng',
+        'cci_indicator': 'CCI',
+        'atr_indicator': 'ATR',
         
         # Command line
         'analyzing_symbols': 'Đang phân tích BTC và ETH trên khung {interval} qua Binance API...',

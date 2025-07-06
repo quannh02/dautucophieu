@@ -6,6 +6,7 @@ import time
 import json
 from datetime import datetime, timedelta
 from crypto_analyzer import CryptoAnalyzer
+from gold_analyzer import GoldAnalyzer
 from alert_system import AlertSystem
 from news_analyzer import NewsAnalyzer
 import threading
@@ -13,7 +14,7 @@ from translations import get_text, get_signal_translation, get_analysis_reason_t
 
 # Configure Streamlit page
 st.set_page_config(
-    page_title="🚀 Crypto Trading Alert System",
+    page_title="🚀 Multi-Market Trading Alert System",
     page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -61,6 +62,7 @@ st.markdown("""
 # Initialize session state
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = CryptoAnalyzer()
+    st.session_state.gold_analyzer = GoldAnalyzer()
     st.session_state.alert_system = AlertSystem()
     st.session_state.news_analyzer = NewsAnalyzer()
     st.session_state.monitoring = False
@@ -211,11 +213,12 @@ def get_news_sentiment_emoji(sentiment):
 
 @st.cache_data(ttl=300)  # Cache for 5 minutes
 def get_news_analysis(crypto_symbol, hours_back=12):
-    """Get news analysis with caching"""
+    """Get news analysis for crypto symbol with caching"""
     try:
-        return st.session_state.news_analyzer.analyze_crypto_news(crypto_symbol, hours_back)
+        analyzer = NewsAnalyzer()
+        return analyzer.analyze_crypto_news(crypto_symbol, hours_back=hours_back)
     except Exception as e:
-        st.error(f"Error fetching news analysis: {e}")
+        st.error(f"Error fetching news for {crypto_symbol}: {e}")
         return None
 
 def display_news_analysis(crypto_symbol, lang='en'):
@@ -360,94 +363,338 @@ def main():
         st.session_state.current_interval = chart_interval
         st.session_state.analysis_cache = {}  # Clear cache when interval changes
     
-    # Main content
-    col1, col2 = st.columns([2, 1])
+    # Market selector
+    st.subheader("📊 Market Selection")
+    market_tabs = st.tabs(["📈 Cryptocurrency", "🥇 Gold Market"])
     
-    with col1:
-        st.subheader(get_text("current_market_analysis", lang))
+    # Cryptocurrency Analysis Tab
+    with market_tabs[0]:
+        col1, col2 = st.columns([2, 1])
         
-        # Get current analysis
-        cache_key = f"analysis_{chart_interval}"
-        
-        # Use cached data if available and not stale (less than 1 minute old)
-        # Don't use cache if user just clicked refresh (last_update is very recent)
-        just_refreshed = (
-            st.session_state.last_update and 
-            (datetime.now() - st.session_state.last_update).seconds < 5
-        )
-        
-        use_cache = (
-            cache_key in st.session_state.analysis_cache and 
-            not interval_changed and
-            not just_refreshed and
-            (datetime.now() - st.session_state.analysis_cache[cache_key]['timestamp']).seconds < 60
-        )
-        
-        if use_cache:
-            results = st.session_state.analysis_cache[cache_key]['data']
-            st.info(get_text("using_cached_data", lang, interval=chart_interval))
-        else:
-            spinner_text = get_text("fetching_fresh_data", lang, interval=chart_interval) if just_refreshed else get_text("fetching_market_data", lang, interval=chart_interval)
-            with st.spinner(spinner_text):
-                results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
-                
-                # Cache the results
-                st.session_state.analysis_cache[cache_key] = {
-                    'data': results,
-                    'timestamp': datetime.now()
-                }
-                
-            if interval_changed:
-                st.success(get_text("charts_updated", lang, interval=chart_interval))
-            elif just_refreshed:
-                st.success(get_text("data_refreshed", lang, interval=chart_interval))
-        
-        if results:
-            # Create tabs for each symbol
-            tabs = st.tabs([symbol.replace('USDT', '/USDT') for symbol in results.keys()])
+        with col1:
+            st.subheader(get_text("current_market_analysis", lang))
             
-            for i, (symbol, data) in enumerate(results.items()):
-                with tabs[i]:
-                    if 'error' in data:
-                        st.error(get_text("error_fetching_data", lang, symbol=symbol, error=data['error']))
-                        continue
+            # Get current analysis
+            cache_key = f"crypto_analysis_{chart_interval}"
+        
+            # Use cached data if available and not stale (less than 1 minute old)
+            # Don't use cache if user just clicked refresh (last_update is very recent)
+            just_refreshed = (
+                st.session_state.last_update and 
+                (datetime.now() - st.session_state.last_update).seconds < 5
+            )
+            
+            use_cache = (
+                cache_key in st.session_state.analysis_cache and 
+                not interval_changed and
+                not just_refreshed and
+                (datetime.now() - st.session_state.analysis_cache[cache_key]['timestamp']).seconds < 60
+            )
+        
+            if use_cache:
+                results = st.session_state.analysis_cache[cache_key]['data']
+                st.info(get_text("using_cached_data", lang, interval=chart_interval))
+            else:
+                spinner_text = get_text("fetching_fresh_data", lang, interval=chart_interval) if just_refreshed else get_text("fetching_market_data", lang, interval=chart_interval)
+                with st.spinner(spinner_text):
+                    results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
                     
-                    analysis = data['analysis']
-                    df = data.get('data', pd.DataFrame())
+                    # Cache the results
+                    st.session_state.analysis_cache[cache_key] = {
+                        'data': results,
+                        'timestamp': datetime.now()
+                    }
                     
-                    # Signal display
-                    signal_color = get_signal_color(analysis['signal'])
-                    st.markdown(
-                        f"""
-                        <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
-                            <h3 style="color: {signal_color}; margin: 0;">
-                                {format_signal_display(analysis['signal'], analysis['strength'], lang)}
-                            </h3>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-                    
-                    # Key metrics
-                    metric_cols = st.columns(4)
-                    with metric_cols[0]:
-                        st.metric(get_text("current_price", lang), f"${analysis['current_price']:,.4f}")
-                    with metric_cols[1]:
-                        rsi_status = get_text("oversold", lang) if analysis['rsi'] < 30 else get_text("overbought", lang) if analysis['rsi'] > 70 else get_text("neutral_rsi", lang)
-                        st.metric("📈 RSI", f"{analysis['rsi']:.2f}")
-                    with metric_cols[2]:
-                        st.metric("📊 MACD", f"{analysis['macd']:.6f}")
-                    with metric_cols[3]:
-                        st.metric(get_text("signal_strength", lang), analysis['strength'])
-                    
-                    # Add news sentiment indicator
-                    crypto_symbol = symbol.replace('USDT', '')
-                    if crypto_symbol in ['BTC', 'ETH']:
-                        with st.spinner("Fetching news sentiment..."):
-                            news_analysis = get_news_analysis(crypto_symbol, hours_back=12)
+                if interval_changed:
+                    st.success(get_text("charts_updated", lang, interval=chart_interval))
+                elif just_refreshed:
+                    st.success(get_text("data_refreshed", lang, interval=chart_interval))
+        
+            if results:
+                # Create tabs for each symbol
+                tabs = st.tabs([symbol.replace('USDT', '/USDT') for symbol in results.keys()])
+                
+                for i, (symbol, data) in enumerate(results.items()):
+                    with tabs[i]:
+                        if 'error' in data:
+                            st.error(get_text("error_fetching_data", lang, symbol=symbol, error=data['error']))
+                            continue
                         
-                        if news_analysis and news_analysis['articles_analyzed'] > 0:
-                            sentiment = news_analysis['overall_sentiment']
+                        analysis = data['analysis']
+                        df = data.get('data', pd.DataFrame())
+                        
+                        # Signal display
+                        signal_color = get_signal_color(analysis['signal'])
+                        st.markdown(
+                            f"""
+                            <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
+                                <h3 style="color: {signal_color}; margin: 0;">
+                                    {format_signal_display(analysis['signal'], analysis['strength'], lang)}
+                                </h3>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                        
+                        # Key metrics
+                        metric_cols = st.columns(4)
+                        with metric_cols[0]:
+                            st.metric(get_text("current_price", lang), f"${analysis['current_price']:,.4f}")
+                        with metric_cols[1]:
+                            rsi_status = get_text("oversold", lang) if analysis['rsi'] < 30 else get_text("overbought", lang) if analysis['rsi'] > 70 else get_text("neutral_rsi", lang)
+                            st.metric("📈 RSI", f"{analysis['rsi']:.2f}")
+                        with metric_cols[2]:
+                            st.metric("📊 MACD", f"{analysis['macd']:.6f}")
+                        with metric_cols[3]:
+                            st.metric(get_text("signal_strength", lang), analysis['strength'])
+                        
+                        # Add news sentiment indicator
+                        crypto_symbol = symbol.replace('USDT', '')
+                        if crypto_symbol in ['BTC', 'ETH']:
+                            with st.spinner("Fetching news sentiment..."):
+                                news_analysis = get_news_analysis(crypto_symbol, hours_back=12)
+                            
+                            if news_analysis and news_analysis['articles_analyzed'] > 0:
+                                sentiment = news_analysis['overall_sentiment']
+                                sentiment_color = get_news_sentiment_color(sentiment)
+                                sentiment_emoji = get_news_sentiment_emoji(sentiment)
+                                
+                                news_cols = st.columns(3)
+                                with news_cols[0]:
+                                    st.markdown(f"""
+                                    <div style="background-color: {sentiment_color}20; padding: 0.5rem; border-radius: 0.25rem; text-align: center; margin-top: 1rem;">
+                                        <strong>📰 News Sentiment: <span style="color: {sentiment_color};">{sentiment_emoji} {sentiment}</span></strong>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                with news_cols[1]:
+                                    st.metric("📰 Articles", news_analysis['articles_analyzed'])
+                                with news_cols[2]:
+                                    st.metric("📊 Confidence", f"{news_analysis['trading_recommendation']['confidence']:.1f}%")
+                        
+                        # Entry and exit levels
+                        if analysis['signal'] != 'NEUTRAL':
+                            entry_cols = st.columns(3)
+                            with entry_cols[0]:
+                                st.metric(get_text("entry_price", lang), f"${analysis['entry_price']:,.4f}")
+                            with entry_cols[1]:
+                                if analysis['stop_loss'] > 0:
+                                    st.metric(get_text("stop_loss", lang), f"${analysis['stop_loss']:,.4f}")
+                            with entry_cols[2]:
+                                if analysis['take_profit'] > 0:
+                                    st.metric(get_text("take_profit", lang), f"${analysis['take_profit']:,.4f}")
+                        
+                        # Analysis reasons
+                        st.subheader(get_text("analysis_details", lang))
+                        for reason in analysis['reasons']:
+                            translated_reason = get_analysis_reason_translation(reason, lang)
+                            st.write(f"• {translated_reason}")
+                        
+                        # Combined analysis (technical + news)
+                        crypto_symbol = symbol.replace('USDT', '')
+                        if crypto_symbol in ['BTC', 'ETH'] and news_analysis and news_analysis['articles_analyzed'] > 0:
+                            st.subheader("📊 Combined Analysis (Technical + News)")
+                            
+                            # Get news sentiment and technical signal
+                            news_sentiment = news_analysis['overall_sentiment']
+                            tech_signal = analysis['signal']
+                            recommendation = news_analysis['trading_recommendation']['action']
+                            
+                            # Determine if signals align or conflict
+                            aligned = (('LONG' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']) or
+                                      ('SHORT' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
+                                      (tech_signal == 'NEUTRAL' and news_sentiment == 'NEUTRAL'))
+                            
+                            conflicted = (('LONG' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
+                                         ('SHORT' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']))
+                            
+                            if aligned:
+                                st.success("✅ Technical analysis and news sentiment are aligned!")
+                                st.markdown(f"""
+                                <div style="background-color: #28a74520; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                    <strong>Technical Signal:</strong> {tech_signal}<br>
+                                    <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                    <strong>Recommendation:</strong> {recommendation} with increased confidence
+                                </div>
+                                """, unsafe_allow_html=True)
+                            elif conflicted:
+                                st.warning("⚠️ Technical analysis and news sentiment are conflicting!")
+                                st.markdown(f"""
+                                <div style="background-color: #ffc10720; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                    <strong>Technical Signal:</strong> {tech_signal}<br>
+                                    <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                    <strong>Recommendation:</strong> Exercise caution - consider waiting for alignment
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.info("ℹ️ Technical analysis and news sentiment provide mixed signals")
+                                st.markdown(f"""
+                                <div style="background-color: #17a2b820; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                    <strong>Technical Signal:</strong> {tech_signal}<br>
+                                    <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                    <strong>Recommendation:</strong> Consider both factors in your decision
+                                </div>
+                                """, unsafe_allow_html=True)
+                        
+                        # Technical chart
+                        if show_technical_indicators and not df.empty:
+                            st.subheader(f"{get_text('technical_analysis_chart', lang)} ({chart_interval})")
+                            chart = create_price_chart(df, symbol.replace('USDT', '/USDT'), chart_interval)
+                            st.plotly_chart(chart, use_container_width=True)
+
+        with col2:
+            st.subheader(get_text("alert_history", lang))
+            
+            # Load alert history
+            try:
+                alert_history = st.session_state.alert_system.get_alert_history(20)
+                
+                if alert_history:
+                    for alert in reversed(alert_history[-10:]):  # Show last 10 alerts
+                        symbol_clean = alert['symbol'].replace('USDT', '/USDT')
+                        signal_color = get_signal_color(alert['signal'])
+                        translated_signal = get_signal_translation(alert['signal'], lang)
+                        
+                        st.markdown(
+                            f"""
+                            <div style="background-color: {signal_color}10; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid {signal_color};">
+                                <strong>{symbol_clean}</strong><br>
+                                <span style="color: {signal_color};">{translated_signal}</span><br>
+                                <small>{alert['timestamp']}</small><br>
+                                <small>${alert['price']:,.4f}</small>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.info(get_text("no_alerts_yet", lang))
+                    
+            except Exception as e:
+                st.error(get_text("error_loading_history", lang, error=str(e)))
+            
+            # System status
+            st.subheader(get_text("system_status", lang))
+            status_color = "#28a745" if st.session_state.monitoring else "#dc3545"
+            status_text = get_text("active", lang) if st.session_state.monitoring else get_text("inactive", lang)
+            last_update_text = st.session_state.last_update or get_text("never", lang)
+            
+            st.markdown(
+                f"""
+                <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
+                    <strong>{get_text("monitoring_status", lang)}:</strong> {status_text}<br>
+                    <strong>{get_text("chart_interval_status", lang)}:</strong> {chart_interval}<br>
+                    <strong>{get_text("last_update", lang)}:</strong> {last_update_text}<br>
+                    <strong>{get_text("symbols", lang)}:</strong> BTC/USDT, ETH/USDT
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            # Add news analysis section
+            st.markdown("---")
+            
+            # Create tabs for news analysis
+            news_tabs = st.tabs(["📰 BTC News", "📰 ETH News"])
+            
+            with news_tabs[0]:
+                display_news_analysis("BTC", lang)
+                
+            with news_tabs[1]:
+                display_news_analysis("ETH", lang)
+    
+    # Gold Market Analysis Tab
+    with market_tabs[1]:
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.subheader("🥇 Gold Market Analysis")
+            
+            # Get current gold analysis
+            gold_cache_key = f"gold_analysis_{chart_interval}"
+        
+            # Use cached data if available and not stale
+            just_refreshed = (
+                st.session_state.last_update and 
+                (datetime.now() - st.session_state.last_update).seconds < 5
+            )
+            
+            use_cache = (
+                gold_cache_key in st.session_state.analysis_cache and 
+                not interval_changed and
+                not just_refreshed and
+                (datetime.now() - st.session_state.analysis_cache[gold_cache_key]['timestamp']).seconds < 60
+            )
+        
+            if use_cache:
+                gold_results = st.session_state.analysis_cache[gold_cache_key]['data']
+                st.info(f"📊 Using cached gold data ({chart_interval})")
+            else:
+                spinner_text = f"📊 Fetching fresh gold data ({chart_interval})..." if just_refreshed else f"📊 Fetching gold market data ({chart_interval})..."
+                with st.spinner(spinner_text):
+                    gold_results = st.session_state.gold_analyzer.analyze_all_symbols(interval=chart_interval)
+                    
+                    # Cache the results
+                    st.session_state.analysis_cache[gold_cache_key] = {
+                        'data': gold_results,
+                        'timestamp': datetime.now()
+                    }
+                    
+                if interval_changed:
+                    st.success(f"✅ Gold charts updated to {chart_interval}")
+                elif just_refreshed:
+                    st.success(f"🔄 Gold data refreshed ({chart_interval})")
+        
+            if gold_results:
+                # Create tabs for each gold symbol
+                gold_symbol_names = {
+                    'GC=F': '🥇 Gold Futures (GC=F)',
+                    'GLD': '🥇 Gold ETF (GLD)'
+                }
+                gold_tabs = st.tabs([gold_symbol_names.get(symbol, symbol) for symbol in gold_results.keys()])
+                
+                for i, (symbol, data) in enumerate(gold_results.items()):
+                    with gold_tabs[i]:
+                        if 'error' in data:
+                            st.error(f"❌ Error fetching data for {symbol}: {data['error']}")
+                            continue
+                        
+                        analysis = data['analysis']
+                        df = data.get('data', pd.DataFrame())
+                        
+                        # Signal display
+                        signal_color = get_signal_color(analysis['signal'])
+                        st.markdown(
+                            f"""
+                            <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
+                                <h3 style="color: {signal_color}; margin: 0;">
+                                    🥇 {format_signal_display(analysis['signal'], analysis['strength'], lang)}
+                                </h3>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                        
+                        # Gold-specific metrics
+                        metric_cols = st.columns(5)
+                        with metric_cols[0]:
+                            st.metric("💰 Current Price", f"${analysis['current_price']:,.2f}")
+                        with metric_cols[1]:
+                            rsi_val = analysis['rsi']
+                            rsi_status = "Oversold" if rsi_val < 25 else "Overbought" if rsi_val > 75 else "Neutral"
+                            st.metric("📈 RSI", f"{rsi_val:.2f}", help=f"Gold RSI thresholds: <25 oversold, >75 overbought")
+                        with metric_cols[2]:
+                            st.metric("📊 MACD", f"{analysis['macd']:.6f}")
+                        with metric_cols[3]:
+                            if 'cci' in analysis:
+                                st.metric("📈 CCI", f"{analysis['cci']:.2f}", help="Commodity Channel Index")
+                        with metric_cols[4]:
+                            st.metric("🎯 Signal Strength", analysis['strength'])
+                        
+                        # Add gold news sentiment
+                        with st.spinner("Fetching gold news sentiment..."):
+                            gold_news = get_news_analysis('GOLD', hours_back=12)
+                        
+                        if gold_news and gold_news['articles_analyzed'] > 0:
+                            sentiment = gold_news['overall_sentiment']
                             sentiment_color = get_news_sentiment_color(sentiment)
                             sentiment_emoji = get_news_sentiment_emoji(sentiment)
                             
@@ -455,143 +702,161 @@ def main():
                             with news_cols[0]:
                                 st.markdown(f"""
                                 <div style="background-color: {sentiment_color}20; padding: 0.5rem; border-radius: 0.25rem; text-align: center; margin-top: 1rem;">
-                                    <strong>📰 News Sentiment: <span style="color: {sentiment_color};">{sentiment_emoji} {sentiment}</span></strong>
+                                    <strong>📰 Gold News Sentiment: <span style="color: {sentiment_color};">{sentiment_emoji} {sentiment}</span></strong>
                                 </div>
                                 """, unsafe_allow_html=True)
                             with news_cols[1]:
-                                st.metric("📰 Articles", news_analysis['articles_analyzed'])
+                                st.metric("📰 Articles", gold_news['articles_analyzed'])
                             with news_cols[2]:
-                                st.metric("📊 Confidence", f"{news_analysis['trading_recommendation']['confidence']:.1f}%")
-                    
-                    # Entry and exit levels
-                    if analysis['signal'] != 'NEUTRAL':
-                        entry_cols = st.columns(3)
-                        with entry_cols[0]:
-                            st.metric(get_text("entry_price", lang), f"${analysis['entry_price']:,.4f}")
-                        with entry_cols[1]:
-                            if analysis['stop_loss'] > 0:
-                                st.metric(get_text("stop_loss", lang), f"${analysis['stop_loss']:,.4f}")
-                        with entry_cols[2]:
-                            if analysis['take_profit'] > 0:
-                                st.metric(get_text("take_profit", lang), f"${analysis['take_profit']:,.4f}")
-                    
-                    # Analysis reasons
-                    st.subheader(get_text("analysis_details", lang))
-                    for reason in analysis['reasons']:
-                        translated_reason = get_analysis_reason_translation(reason, lang)
-                        st.write(f"• {translated_reason}")
-                    
-                    # Combined analysis (technical + news)
-                    crypto_symbol = symbol.replace('USDT', '')
-                    if crypto_symbol in ['BTC', 'ETH'] and news_analysis and news_analysis['articles_analyzed'] > 0:
-                        st.subheader("📊 Combined Analysis (Technical + News)")
+                                st.metric("📊 Confidence", f"{gold_news['trading_recommendation']['confidence']:.1f}%")
                         
-                        # Get news sentiment and technical signal
-                        news_sentiment = news_analysis['overall_sentiment']
-                        tech_signal = analysis['signal']
-                        recommendation = news_analysis['trading_recommendation']['action']
+                        # Entry and exit levels for gold
+                        if analysis['signal'] != 'NEUTRAL':
+                            entry_cols = st.columns(3)
+                            with entry_cols[0]:
+                                st.metric("🎯 Entry Price", f"${analysis['entry_price']:,.2f}")
+                            with entry_cols[1]:
+                                if analysis['stop_loss'] > 0:
+                                    st.metric("🛑 Stop Loss", f"${analysis['stop_loss']:,.2f}")
+                            with entry_cols[2]:
+                                if analysis['take_profit'] > 0:
+                                    st.metric("🎯 Take Profit", f"${analysis['take_profit']:,.2f}")
                         
-                        # Determine if signals align or conflict
-                        aligned = (('LONG' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']) or
-                                  ('SHORT' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
-                                  (tech_signal == 'NEUTRAL' and news_sentiment == 'NEUTRAL'))
+                        # Gold-specific indicators
+                        if any(key in analysis for key in ['atr', 'cci', 'donchian_upper', 'donchian_lower']):
+                            st.subheader("📊 Gold-Specific Indicators")
+                            gold_indicator_cols = st.columns(4)
+                            
+                            if 'atr' in analysis:
+                                with gold_indicator_cols[0]:
+                                    st.metric("📊 ATR", f"{analysis['atr']:.2f}", help="Average True Range - Volatility measure")
+                            
+                            if 'cci' in analysis:
+                                with gold_indicator_cols[1]:
+                                    cci_val = analysis['cci']
+                                    cci_status = "Oversold" if cci_val < -100 else "Overbought" if cci_val > 100 else "Neutral"
+                                    st.metric("📈 CCI", f"{cci_val:.2f}", help=f"Commodity Channel Index: {cci_status}")
+                            
+                            if 'donchian_upper' in analysis and 'donchian_lower' in analysis:
+                                with gold_indicator_cols[2]:
+                                    st.metric("📈 Donchian High", f"${analysis['donchian_upper']:,.2f}")
+                                with gold_indicator_cols[3]:
+                                    st.metric("📉 Donchian Low", f"${analysis['donchian_lower']:,.2f}")
                         
-                        conflicted = (('LONG' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
-                                     ('SHORT' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']))
+                        # Analysis reasons
+                        st.subheader("📋 Analysis Details")
+                        for reason in analysis['reasons']:
+                            st.write(f"• {reason}")
                         
-                        if aligned:
-                            st.success("✅ Technical analysis and news sentiment are aligned!")
-                            st.markdown(f"""
-                            <div style="background-color: #28a74520; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
-                                <strong>Technical Signal:</strong> {tech_signal}<br>
-                                <strong>News Sentiment:</strong> {news_sentiment}<br>
-                                <strong>Recommendation:</strong> {recommendation} with increased confidence
-                            </div>
-                            """, unsafe_allow_html=True)
-                        elif conflicted:
-                            st.warning("⚠️ Technical analysis and news sentiment are conflicting!")
-                            st.markdown(f"""
-                            <div style="background-color: #ffc10720; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
-                                <strong>Technical Signal:</strong> {tech_signal}<br>
-                                <strong>News Sentiment:</strong> {news_sentiment}<br>
-                                <strong>Recommendation:</strong> Exercise caution - consider waiting for alignment
-                            </div>
-                            """, unsafe_allow_html=True)
-                        else:
-                            st.info("ℹ️ Technical analysis and news sentiment provide mixed signals")
-                            st.markdown(f"""
-                            <div style="background-color: #17a2b820; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
-                                <strong>Technical Signal:</strong> {tech_signal}<br>
-                                <strong>News Sentiment:</strong> {news_sentiment}<br>
-                                <strong>Recommendation:</strong> Consider both factors in your decision
-                            </div>
-                            """, unsafe_allow_html=True)
-                    
-                    # Technical chart
-                    if show_technical_indicators and not df.empty:
-                        st.subheader(f"{get_text('technical_analysis_chart', lang)} ({chart_interval})")
-                        chart = create_price_chart(df, symbol.replace('USDT', '/USDT'), chart_interval)
-                        st.plotly_chart(chart, use_container_width=True)
-    
-    with col2:
-        st.subheader(get_text("alert_history", lang))
-        
-        # Load alert history
-        try:
-            alert_history = st.session_state.alert_system.get_alert_history(20)
-            
-            if alert_history:
-                for alert in reversed(alert_history[-10:]):  # Show last 10 alerts
-                    symbol_clean = alert['symbol'].replace('USDT', '/USDT')
-                    signal_color = get_signal_color(alert['signal'])
-                    translated_signal = get_signal_translation(alert['signal'], lang)
-                    
-                    st.markdown(
-                        f"""
-                        <div style="background-color: {signal_color}10; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid {signal_color};">
-                            <strong>{symbol_clean}</strong><br>
-                            <span style="color: {signal_color};">{translated_signal}</span><br>
-                            <small>{alert['timestamp']}</small><br>
-                            <small>${alert['price']:,.4f}</small>
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+                        # Combined gold analysis (technical + news)
+                        if gold_news and gold_news['articles_analyzed'] > 0:
+                            st.subheader("📊 Combined Gold Analysis (Technical + News)")
+                            
+                            # Get news sentiment and technical signal
+                            news_sentiment = gold_news['overall_sentiment']
+                            tech_signal = analysis['signal']
+                            recommendation = gold_news['trading_recommendation']['action']
+                            
+                            # Determine if signals align or conflict
+                            aligned = (('LONG' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']) or
+                                      ('SHORT' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
+                                      (tech_signal == 'NEUTRAL' and news_sentiment == 'NEUTRAL'))
+                            
+                            conflicted = (('LONG' in tech_signal and news_sentiment in ['VERY_NEGATIVE', 'NEGATIVE']) or
+                                         ('SHORT' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']))
+                            
+                            if aligned:
+                                st.success("✅ Gold technical analysis and news sentiment are aligned!")
+                                st.markdown(f"""
+                                <div style="background-color: #28a74520; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                    <strong>Technical Signal:</strong> {tech_signal}<br>
+                                    <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                    <strong>Gold Recommendation:</strong> {recommendation} with increased confidence
+                                </div>
+                                """, unsafe_allow_html=True)
+                            elif conflicted:
+                                st.warning("⚠️ Gold technical analysis and news sentiment are conflicting!")
+                                st.markdown(f"""
+                                <div style="background-color: #ffc10720; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                    <strong>Technical Signal:</strong> {tech_signal}<br>
+                                    <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                    <strong>Gold Recommendation:</strong> Exercise caution - wait for alignment
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.info("ℹ️ Gold technical and news signals provide mixed information")
+                                st.markdown(f"""
+                                <div style="background-color: #17a2b820; padding: 0.75rem; border-radius: 0.5rem; margin-top: 0.5rem;">
+                                    <strong>Technical Signal:</strong> {tech_signal}<br>
+                                    <strong>News Sentiment:</strong> {news_sentiment}<br>
+                                    <strong>Gold Recommendation:</strong> Consider both technical and fundamental factors
+                                </div>
+                                """, unsafe_allow_html=True)
+                        
+                        # Technical chart for gold
+                        if show_technical_indicators and not df.empty:
+                            st.subheader(f"📊 Gold Technical Chart ({chart_interval})")
+                            # Create gold-specific chart title
+                            gold_name = "Gold Futures" if symbol == "GC=F" else "Gold ETF"
+                            chart = create_price_chart(df, f"{gold_name} ({symbol})", chart_interval)
+                            st.plotly_chart(chart, use_container_width=True)
             else:
-                st.info(get_text("no_alerts_yet", lang))
-                
-        except Exception as e:
-            st.error(get_text("error_loading_history", lang, error=str(e)))
-        
-        # System status
-        st.subheader(get_text("system_status", lang))
-        status_color = "#28a745" if st.session_state.monitoring else "#dc3545"
-        status_text = get_text("active", lang) if st.session_state.monitoring else get_text("inactive", lang)
-        last_update_text = st.session_state.last_update or get_text("never", lang)
-        
-        st.markdown(
-            f"""
-            <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
-                <strong>{get_text("monitoring_status", lang)}:</strong> {status_text}<br>
-                <strong>{get_text("chart_interval_status", lang)}:</strong> {chart_interval}<br>
-                <strong>{get_text("last_update", lang)}:</strong> {last_update_text}<br>
-                <strong>{get_text("symbols", lang)}:</strong> BTC/USDT, ETH/USDT
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        
-        # Add news analysis section
-        st.markdown("---")
-        
-        # Create tabs for news analysis
-        news_tabs = st.tabs(["📰 BTC News", "📰 ETH News"])
-        
-        with news_tabs[0]:
-            display_news_analysis("BTC", lang)
+                st.warning("⚠️ No gold market data available. Check your internet connection.")
+
+        with col2:
+            st.subheader("🥇 Gold Alert History")
             
-        with news_tabs[1]:
-            display_news_analysis("ETH", lang)
+            # Load gold-specific alert history
+            try:
+                alert_history = st.session_state.alert_system.get_alert_history(20)
+                gold_alerts = [alert for alert in alert_history if alert['symbol'] in ['GC=F', 'GLD']]
+                
+                if gold_alerts:
+                    for alert in reversed(gold_alerts[-10:]):  # Show last 10 gold alerts
+                        symbol_clean = f"🥇 {alert['symbol']}"
+                        signal_color = get_signal_color(alert['signal'])
+                        translated_signal = get_signal_translation(alert['signal'], lang)
+                        
+                        st.markdown(
+                            f"""
+                            <div style="background-color: {signal_color}10; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid {signal_color};">
+                                <strong>{symbol_clean}</strong><br>
+                                <span style="color: {signal_color};">{translated_signal}</span><br>
+                                <small>{alert['timestamp']}</small><br>
+                                <small>${alert['price']:,.2f}</small>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.info("📭 No gold alerts yet")
+                    
+            except Exception as e:
+                st.error(f"❌ Error loading gold alert history: {str(e)}")
+            
+            # Gold system status
+            st.subheader("🥇 Gold System Status")
+            status_color = "#28a745" if st.session_state.monitoring else "#dc3545"
+            status_text = get_text("active", lang) if st.session_state.monitoring else get_text("inactive", lang)
+            last_update_text = st.session_state.last_update or get_text("never", lang)
+            
+            st.markdown(
+                f"""
+                <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
+                    <strong>🥇 Gold Monitoring:</strong> {status_text}<br>
+                    <strong>📊 Chart Interval:</strong> {chart_interval}<br>
+                    <strong>🔄 Last Update:</strong> {last_update_text}<br>
+                    <strong>📈 Gold Symbols:</strong> GC=F Futures, GLD ETF<br>
+                    <strong>📰 News Sources:</strong> MarketWatch, Kitco News
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            # Add gold news analysis section
+            st.markdown("---")
+            st.subheader("📰 Gold Market News")
+            display_news_analysis("GOLD", lang)
     
     # Auto-refresh
     if st.session_state.monitoring:

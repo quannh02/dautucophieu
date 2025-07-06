@@ -12,4 +12,5 @@ colorama
 plyer
 email-validator
 textblob
-feedparser 
+feedparser
+yfinance 

@@ -2,8 +2,8 @@
 
 # Crypto Trading Alert System - Startup Script
 
-echo "🚀 Crypto Trading Alert System"
-echo "=============================="
+echo "🚀 Multi-Market Trading Alert System"
+echo "===================================="
 
 # Activate virtual environment
 source crypto_env/bin/activate
@@ -33,6 +33,34 @@ case "$1" in
         fi
         if [ -n "$interval" ]; then
             cmd="$cmd $interval"
+        fi
+        
+        echo "Command: $cmd"
+        eval $cmd
+        ;;
+    "gold"|"g")
+        echo "🥇 Running Gold Market Analysis..."
+        
+        # Parse language and interval arguments for gold
+        lang=""
+        interval=""
+        
+        # Check if second argument is a language
+        if [ "$2" = "vi" ] || [ "$2" = "vietnamese" ] || [ "$2" = "en" ] || [ "$2" = "english" ]; then
+            lang="$2"
+            interval="$3"
+        else
+            # Second argument is interval, use default language
+            interval="$2"
+        fi
+        
+        # Build command for gold analysis
+        cmd="python gold_analysis.py"
+        if [ -n "$interval" ]; then
+            cmd="$cmd $interval"
+        fi
+        if [ -n "$lang" ]; then
+            cmd="$cmd $lang"
         fi
         
         echo "Command: $cmd"
@@ -82,9 +110,10 @@ case "$1" in
         echo ""
         echo "Commands:"
         echo "  quick, q       - Quick analysis of BTC and ETH"
+        echo "  gold, g        - Gold market analysis (GC=F futures and GOLD ETF)"
         echo "  monitor, m     - Start real-time monitoring with alerts (optional: duration)"
         echo "  web, w         - Launch web dashboard"
-        echo "  news, n        - Analyze crypto news sentiment (optional: symbol, hours)"
+        echo "  news, n        - Analyze news sentiment (optional: symbol, hours)"
         echo "  install, i     - Install/update dependencies"
         echo "  test-email, te - Test email notification configuration"
         echo ""
@@ -93,11 +122,12 @@ case "$1" in
         echo "  vi, vietnamese  - Vietnamese (Tiếng Việt)"
         echo ""
         echo "Examples:"
-        echo "  ./run.sh quick              # Get instant analysis (English, 5m default)"
-        echo "  ./run.sh quick vi           # Analysis in Vietnamese (5m default)"
-        echo "  ./run.sh quick en 1h        # English analysis with 1 hour timeframe"
-        echo "  ./run.sh quick vietnamese 4h # Vietnamese analysis with 4 hour timeframe"
-        echo "  ./run.sh quick 1d           # English analysis with daily timeframe (no language specified)"
+        echo "  ./run.sh quick              # Get instant crypto analysis (English, 5m default)"
+        echo "  ./run.sh quick vi           # Crypto analysis in Vietnamese (5m default)"
+        echo "  ./run.sh quick en 1h        # English crypto analysis with 1 hour timeframe"
+        echo "  ./run.sh gold               # Gold market analysis (English, 1h default)"
+        echo "  ./run.sh gold 4h            # Gold analysis with 4 hour timeframe"
+        echo "  ./run.sh gold vi 1d         # Vietnamese gold analysis with daily timeframe"
         echo "  ./run.sh monitor            # Start monitoring (runs indefinitely)"
         echo "  ./run.sh monitor 1h         # Start monitoring for 1 hour"
         echo "  ./run.sh monitor 30m        # Start monitoring for 30 minutes"
@@ -105,6 +135,7 @@ case "$1" in
         echo "  ./run.sh web                # Launch web interface"
         echo "  ./run.sh news               # Analyze BTC news from last 24 hours"
         echo "  ./run.sh news ETH 12        # Analyze ETH news from last 12 hours"
+        echo "  ./run.sh news GOLD 6        # Analyze gold news from last 6 hours"
         echo "  ./run.sh news CRYPTO 6      # Analyze general crypto news from last 6 hours"
         echo "  ./run.sh test-email         # Test email configuration"
         echo ""

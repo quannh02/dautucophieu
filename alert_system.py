@@ -13,6 +13,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email_validator import validate_email, EmailNotValidError
 from crypto_analyzer import CryptoAnalyzer
+from gold_analyzer import GoldAnalyzer
 from news_analyzer import NewsAnalyzer
 
 # Initialize colorama for colored console output
@@ -28,7 +29,8 @@ class AlertSystem:
     """
     
     def __init__(self, check_interval: int = 60, max_duration: int = None):
-        self.analyzer = CryptoAnalyzer()
+        self.crypto_analyzer = CryptoAnalyzer()
+        self.gold_analyzer = GoldAnalyzer()
         self.news_analyzer = NewsAnalyzer()
         self.check_interval = check_interval  # seconds
         self.max_duration = max_duration  # seconds (None = run indefinitely)
@@ -345,7 +347,7 @@ class AlertSystem:
     def print_analysis(self, results: Dict):
         """Print formatted analysis results to console"""
         print("\n" + "="*80)
-        print(f"{Fore.CYAN + Style.BRIGHT}🚀 CRYPTO TRADING ALERT SYSTEM 🚀{Style.RESET_ALL}")
+        print(f"{Fore.CYAN + Style.BRIGHT}🚀 MULTI-MARKET TRADING ALERT SYSTEM 🚀{Style.RESET_ALL}")
         print(f"{Fore.CYAN}Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}{Style.RESET_ALL}")
         print("="*80)
         
@@ -355,7 +357,18 @@ class AlertSystem:
                 continue
                 
             analysis = data['analysis']
-            symbol_clean = symbol.replace('USDT', '/USDT')
+            market_type = data.get('market', 'CRYPTO')
+            
+            # Format symbol display based on market type
+            if market_type == 'GOLD':
+                if symbol == 'GC=F':
+                    symbol_clean = "🥇 Gold Futures (GC=F)"
+                elif symbol == 'GLD':
+                    symbol_clean = "🥇 Gold ETF (GLD)"
+                else:
+                    symbol_clean = f"🥇 {symbol}"
+            else:
+                symbol_clean = symbol.replace('USDT', '/USDT')
             
             print(f"\n{Fore.YELLOW + Style.BRIGHT}📊 {symbol_clean}{Style.RESET_ALL}")
             print("-" * 50)
@@ -387,12 +400,17 @@ class AlertSystem:
     def analyze_with_news(self, symbol: str, technical_analysis: Dict) -> Dict:
         """Combine technical analysis with news sentiment"""
         try:
-            # Get crypto symbol for news analysis (remove USDT)
-            crypto_symbol = symbol.replace('USDT', '')
-            if crypto_symbol in ['BTC', 'ETH']:
-                news_analysis = self.news_analyzer.analyze_crypto_news(crypto_symbol, hours_back=12)
+            # Determine news analysis type based on symbol
+            if symbol in ['GC=F', 'GLD']:
+                # Gold symbols
+                news_analysis = self.news_analyzer.analyze_crypto_news('GOLD', hours_back=12)
             else:
-                news_analysis = self.news_analyzer.analyze_crypto_news('CRYPTO', hours_back=12)
+                # Crypto symbols - remove USDT suffix
+                crypto_symbol = symbol.replace('USDT', '')
+                if crypto_symbol in ['BTC', 'ETH']:
+                    news_analysis = self.news_analyzer.analyze_crypto_news(crypto_symbol, hours_back=12)
+                else:
+                    news_analysis = self.news_analyzer.analyze_crypto_news('CRYPTO', hours_back=12)
             
             # Combine technical and news signals
             technical_signal = technical_analysis['signal']
@@ -576,7 +594,7 @@ class AlertSystem:
                         break
                 
                 # Analyze all symbols
-                results = self.analyzer.analyze_all_symbols()
+                results = self.get_current_analysis()
                 
                 # Print analysis with time remaining if duration is set
                 if self.max_duration:
@@ -625,7 +643,23 @@ class AlertSystem:
     
     def get_current_analysis(self) -> Dict:
         """Get current analysis for all symbols"""
-        return self.analyzer.analyze_all_symbols()
+        results = {}
+        
+        # Get crypto analysis
+        crypto_results = self.crypto_analyzer.analyze_all_symbols()
+        for symbol, data in crypto_results.items():
+            if 'analysis' in data:
+                data['market'] = 'CRYPTO'
+            results[symbol] = data
+        
+        # Get gold analysis
+        gold_results = self.gold_analyzer.analyze_all_symbols()
+        for symbol, data in gold_results.items():
+            if 'analysis' in data:
+                data['market'] = 'GOLD'
+            results[symbol] = data
+        
+        return results
     
     def get_alert_history(self, limit: int = 20) -> List[Dict]:
         """Get recent alert history"""
