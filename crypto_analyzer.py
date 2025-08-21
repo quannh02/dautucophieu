@@ -19,12 +19,35 @@ class CryptoAnalyzer:
     
     def __init__(self):
         self.base_url = "https://api.binance.com/api/v3"
+        self.fallback_url = "https://api.coingecko.com/api/v3"
         self.symbols = ["BTCUSDT", "ETHUSDT"]
+        self.use_fallback = False
+        
+        # Detect if we're in a restricted environment (like Streamlit Cloud)
+        self.detect_restricted_environment()
+    
+    def detect_restricted_environment(self):
+        """
+        Detect if we're running in a restricted environment that blocks external APIs
+        """
+        try:
+            # Check if we're in Streamlit Cloud or similar restricted environment
+            import os
+            if os.environ.get('STREAMLIT_SERVER_PORT') or os.environ.get('STREAMLIT_SERVER_ADDRESS'):
+                logger.info("Detected Streamlit Cloud environment - will use fallback APIs if needed")
+                self.use_fallback = True
+        except Exception as e:
+            logger.warning(f"Could not detect environment: {e}")
         
     def get_klines(self, symbol: str, interval: str = "5m", limit: int = 200) -> pd.DataFrame:
         """
-        Fetch historical kline data from Binance
+        Fetch historical kline data from Binance or fallback to CoinGecko
         """
+        # If in restricted environment, use fallback directly
+        if self.use_fallback:
+            logger.info(f"Using CoinGecko fallback for {symbol} due to restricted environment")
+            return self.get_klines_fallback(symbol, interval, limit)
+        
         try:
             url = f"{self.base_url}/klines"
             params = {
@@ -57,13 +80,23 @@ class CryptoAnalyzer:
             return df[['open', 'high', 'low', 'close', 'volume']]
             
         except Exception as e:
-            logger.error(f"Error fetching klines for {symbol}: {e}")
-            return pd.DataFrame()
+            logger.error(f"Error fetching klines for {symbol} from Binance: {e}")
+            # Try fallback to CoinGecko
+            try:
+                return self.get_klines_fallback(symbol, interval, limit)
+            except Exception as fallback_error:
+                logger.error(f"Error fetching klines for {symbol} from fallback: {fallback_error}")
+                return pd.DataFrame()
     
     def get_current_price(self, symbol: str) -> float:
         """
-        Get current price for a symbol
+        Get current price for a symbol from Binance or fallback to CoinGecko
         """
+        # If in restricted environment, use fallback directly
+        if self.use_fallback:
+            logger.info(f"Using CoinGecko fallback for current price of {symbol} due to restricted environment")
+            return self.get_current_price_fallback(symbol)
+        
         try:
             url = f"{self.base_url}/ticker/price"
             params = {"symbol": symbol}
@@ -75,8 +108,113 @@ class CryptoAnalyzer:
             return float(data['price'])
             
         except Exception as e:
-            logger.error(f"Error fetching current price for {symbol}: {e}")
-            return 0.0
+            logger.error(f"Error fetching current price for {symbol} from Binance: {e}")
+            # Try fallback to CoinGecko
+            try:
+                return self.get_current_price_fallback(symbol)
+            except Exception as fallback_error:
+                logger.error(f"Error fetching current price for {symbol} from fallback: {fallback_error}")
+                return 0.0
+    
+    def get_klines_fallback(self, symbol: str, interval: str = "5m", limit: int = 200) -> pd.DataFrame:
+        """
+        Fallback method using CoinGecko API for historical data
+        """
+        try:
+            # Convert Binance symbol to CoinGecko format
+            symbol_mapping = {
+                "BTCUSDT": "bitcoin",
+                "ETHUSDT": "ethereum"
+            }
+            
+            coin_id = symbol_mapping.get(symbol)
+            if not coin_id:
+                raise ValueError(f"Unsupported symbol for fallback: {symbol}")
+            
+            # Convert interval to days
+            interval_days = {
+                "5m": 1,    # 1 day for 5m data
+                "15m": 3,   # 3 days for 15m data
+                "1h": 7,    # 7 days for 1h data
+                "4h": 30,   # 30 days for 4h data
+                "1d": 365   # 1 year for 1d data
+            }
+            
+            days = interval_days.get(interval, 7)
+            
+            url = f"{self.fallback_url}/coins/{coin_id}/ohlc"
+            params = {
+                "vs_currency": "usd",
+                "days": days
+            }
+            
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            # Convert to DataFrame format similar to Binance
+            df_data = []
+            for candle in data:
+                timestamp, open_price, high, low, close_price = candle
+                df_data.append({
+                    'timestamp': timestamp,
+                    'open': open_price,
+                    'high': high,
+                    'low': low,
+                    'close': close_price,
+                    'volume': 0  # CoinGecko doesn't provide volume in OHLC
+                })
+            
+            df = pd.DataFrame(df_data)
+            
+            # Convert timestamp
+            df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+            df.set_index('datetime', inplace=True)
+            
+            # Limit to requested number of rows
+            df = df.tail(limit)
+            
+            logger.info(f"Successfully fetched {len(df)} rows from CoinGecko fallback for {symbol}")
+            return df[['open', 'high', 'low', 'close', 'volume']]
+            
+        except Exception as e:
+            logger.error(f"Error in CoinGecko fallback for {symbol}: {e}")
+            raise
+    
+    def get_current_price_fallback(self, symbol: str) -> float:
+        """
+        Fallback method using CoinGecko API for current price
+        """
+        try:
+            # Convert Binance symbol to CoinGecko format
+            symbol_mapping = {
+                "BTCUSDT": "bitcoin",
+                "ETHUSDT": "ethereum"
+            }
+            
+            coin_id = symbol_mapping.get(symbol)
+            if not coin_id:
+                raise ValueError(f"Unsupported symbol for fallback: {symbol}")
+            
+            url = f"{self.fallback_url}/simple/price"
+            params = {
+                "ids": coin_id,
+                "vs_currencies": "usd"
+            }
+            
+            response = requests.get(url, params=params)
+            response.raise_for_status()
+            
+            data = response.json()
+            price = data[coin_id]['usd']
+            
+            logger.info(f"Successfully fetched price from CoinGecko fallback for {symbol}: ${price}")
+            return float(price)
+            
+        except Exception as e:
+            logger.error(f"Error in CoinGecko fallback price for {symbol}: {e}")
+            raise
     
     def calculate_technical_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
         """
