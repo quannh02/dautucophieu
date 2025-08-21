@@ -123,6 +123,7 @@ class VNStockAnalyzer:
             df['sma_20'] = ta.trend.sma_indicator(df['close'], window=20)
             df['sma_50'] = ta.trend.sma_indicator(df['close'], window=50)
             df['ema_12'] = ta.trend.ema_indicator(df['close'], window=12)
+            df['ema_20'] = ta.trend.ema_indicator(df['close'], window=20)
             df['ema_26'] = ta.trend.ema_indicator(df['close'], window=26)
             
             # RSI (14-period standard for Vietnamese market)
@@ -202,9 +203,19 @@ class VNStockAnalyzer:
             
             signals['sma_trend'] = sma_trend
             
-            # Price position relative to SMA
+            # EMA20 trend analysis (popular in Vietnamese market)
+            ema20_trend = 0
+            if current['close'] > current['ema_20'] and current['ema_20'] > prev['ema_20']:
+                ema20_trend = 1  # Price above rising EMA20
+            elif current['close'] < current['ema_20'] and current['ema_20'] < prev['ema_20']:
+                ema20_trend = -1  # Price below falling EMA20
+            
+            signals['ema20_trend'] = ema20_trend
+            
+            # Price position relative to key moving averages
             price_above_sma20 = current['close'] > current['sma_20']
             price_above_sma50 = current['close'] > current['sma_50']
+            price_above_ema20 = current['close'] > current['ema_20']
             
             # RSI conditions (Vietnamese market often uses 30/70 levels)
             rsi_oversold = current['rsi'] < 30
@@ -230,6 +241,7 @@ class VNStockAnalyzer:
             signals.update({
                 'price_above_sma20': price_above_sma20,
                 'price_above_sma50': price_above_sma50,
+                'price_above_ema20': price_above_ema20,
                 'rsi_oversold': rsi_oversold,
                 'rsi_overbought': rsi_overbought,
                 'rsi_neutral': rsi_neutral,
@@ -299,6 +311,21 @@ class VNStockAnalyzer:
             elif not market_signals.get('price_above_sma20') and not market_signals.get('price_above_sma50'):
                 bearish_score += 2
                 reasons.append("Price below key moving averages")
+            
+            # EMA20 Analysis (Weight: 2)
+            ema20_trend = market_signals.get('ema20_trend', 0)
+            if ema20_trend == 1:
+                bullish_score += 2
+                reasons.append("Price above rising EMA20 - strong bullish momentum")
+            elif ema20_trend == -1:
+                bearish_score += 2
+                reasons.append("Price below falling EMA20 - strong bearish momentum")
+            elif market_signals.get('price_above_ema20'):
+                bullish_score += 1
+                reasons.append("Price above EMA20")
+            elif not market_signals.get('price_above_ema20'):
+                bearish_score += 1
+                reasons.append("Price below EMA20")
             
             # RSI Analysis (Weight: 2)
             if market_signals.get('rsi_oversold'):
@@ -386,6 +413,7 @@ class VNStockAnalyzer:
                 'take_profit': max(0, take_profit),
                 'rsi': current['rsi'],
                 'macd': current['macd'],
+                'ema_20': current['ema_20'],
                 'atr': atr,
                 'volume_ratio': current['volume_ratio'],
                 'mfi': current.get('mfi', 0),

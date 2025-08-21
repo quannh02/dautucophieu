@@ -127,6 +127,12 @@ def create_price_chart(df, symbol, interval="5m"):
             row=1, col=1
         )
     
+    if 'ema_20' in df.columns:
+        fig.add_trace(
+            go.Scatter(x=df.index, y=df['ema_20'], name='EMA 20', line=dict(color='red', width=2)),
+            row=1, col=1
+        )
+    
     if 'sma_50' in df.columns:
         fig.add_trace(
             go.Scatter(x=df.index, y=df['sma_50'], name='SMA 50', line=dict(color='purple')),
@@ -980,7 +986,7 @@ def main():
                             )
                             
                             # Vietnamese stock-specific metrics
-                            metric_cols = st.columns(6)
+                            metric_cols = st.columns(7)
                             with metric_cols[0]:
                                 st.metric("💰 Current Price", f"{analysis['current_price']:,.1f}K VND")
                             with metric_cols[1]:
@@ -990,12 +996,17 @@ def main():
                             with metric_cols[2]:
                                 st.metric("📊 MACD", f"{analysis['macd']:.4f}")
                             with metric_cols[3]:
-                                st.metric("📊 ATR", f"{analysis['atr']:.2f}")
+                                # EMA20 with trend indication
+                                if 'ema_20' in analysis:
+                                    ema_trend = "📈" if analysis['current_price'] > analysis['ema_20'] else "📉"
+                                    st.metric("📊 EMA20", f"{analysis['ema_20']:,.1f}K", help=f"{ema_trend} Price vs EMA20")
                             with metric_cols[4]:
+                                st.metric("📊 ATR", f"{analysis['atr']:.2f}")
+                            with metric_cols[5]:
                                 if 'volume_ratio' in analysis:
                                     volume_color = "🟢" if analysis['volume_ratio'] > 1.2 else "🔴" if analysis['volume_ratio'] < 0.8 else "🟡"
                                     st.metric("📊 Volume", f"{analysis['volume_ratio']:.2f}x", help=f"{volume_color} Volume vs average")
-                            with metric_cols[5]:
+                            with metric_cols[6]:
                                 st.metric("🎯 Signal Strength", f"{analysis['strength']}/10")
                             
                             # Additional Vietnamese market indicators

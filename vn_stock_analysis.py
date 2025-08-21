@@ -86,6 +86,7 @@ def print_analysis_summary(analysis, symbol, lang='en'):
     
     print(f"  RSI (14):      {rsi:.1f} ({rsi_status})")
     print(f"  MACD:          {analysis['macd']:.4f}")
+    print(f"  EMA 20:        {analysis['ema_20']:,.1f}K VND")
     print(f"  ATR:           {analysis['atr']:.2f}")
     print(f"  Volume Ratio:  {analysis['volume_ratio']:.2f}x")
     
