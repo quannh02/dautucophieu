@@ -7,6 +7,7 @@ import json
 from datetime import datetime, timedelta
 from crypto_analyzer import CryptoAnalyzer
 from gold_analyzer import GoldAnalyzer
+from vn_stock_analyzer import VNStockAnalyzer
 from alert_system import AlertSystem
 from news_analyzer import NewsAnalyzer
 import threading
@@ -63,6 +64,7 @@ st.markdown("""
 if 'analyzer' not in st.session_state:
     st.session_state.analyzer = CryptoAnalyzer()
     st.session_state.gold_analyzer = GoldAnalyzer()
+    st.session_state.vn_stock_analyzer = VNStockAnalyzer()
     st.session_state.alert_system = AlertSystem()
     st.session_state.news_analyzer = NewsAnalyzer()
     st.session_state.monitoring = False
@@ -365,7 +367,7 @@ def main():
     
     # Market selector
     st.subheader("📊 Market Selection")
-    market_tabs = st.tabs(["📈 Cryptocurrency", "🥇 Gold Market"])
+    market_tabs = st.tabs(["📈 Cryptocurrency", "🥇 Gold Market", "🇻🇳 Vietnamese Stocks"])
     
     # Cryptocurrency Analysis Tab
     with market_tabs[0]:
@@ -857,6 +859,261 @@ def main():
             st.markdown("---")
             st.subheader("📰 Gold Market News")
             display_news_analysis("GOLD", lang)
+    
+    # Vietnamese Stocks Analysis Tab
+    with market_tabs[2]:
+        col1, col2 = st.columns([2, 1])
+        
+        with col1:
+            st.subheader("🇻🇳 Vietnamese Stock Market Analysis")
+            
+            # Stock selection
+            vn_analyzer = st.session_state.vn_stock_analyzer
+            stock_options = ["ALL"] + list(vn_analyzer.vn_stocks.keys())
+            
+            # Stock selector
+            selected_stocks = st.multiselect(
+                "📈 Select Vietnamese Stocks to Analyze",
+                options=stock_options,
+                default=["ALL"] if "ALL" in stock_options else stock_options[:5],
+                help="Select specific stocks or 'ALL' for top performers"
+            )
+            
+            # Number of stocks limit when ALL is selected
+            if "ALL" in selected_stocks:
+                stock_limit = st.slider("Number of stocks to analyze", 5, 15, 8)
+                selected_stocks = ["ALL"]
+            else:
+                stock_limit = len(selected_stocks)
+            
+            # Get current Vietnamese stock analysis
+            vn_cache_key = f"vn_analysis_{chart_interval}_{'-'.join(selected_stocks)}_{stock_limit}"
+        
+            # Use cached data if available and not stale
+            just_refreshed = (
+                st.session_state.last_update and 
+                (datetime.now() - st.session_state.last_update).seconds < 5
+            )
+            
+            use_cache = (
+                vn_cache_key in st.session_state.analysis_cache and 
+                not interval_changed and
+                not just_refreshed and
+                (datetime.now() - st.session_state.analysis_cache[vn_cache_key]['timestamp']).seconds < 60
+            )
+        
+            if use_cache:
+                vn_results = st.session_state.analysis_cache[vn_cache_key]['data']
+                st.info(f"📊 Using cached Vietnamese stock data ({chart_interval})")
+            else:
+                spinner_text = f"📊 Fetching fresh Vietnamese stock data ({chart_interval})..." if just_refreshed else f"📊 Fetching Vietnamese stock data ({chart_interval})..."
+                with st.spinner(spinner_text):
+                    if "ALL" in selected_stocks:
+                        vn_results = vn_analyzer.analyze_all_symbols(interval=chart_interval, limit=stock_limit)
+                    else:
+                        vn_results = {}
+                        for stock in selected_stocks:
+                            if stock != "ALL":
+                                result = vn_analyzer.analyze_symbol(stock, interval=chart_interval)
+                                vn_results[stock] = result
+                    
+                    # Cache the results
+                    st.session_state.analysis_cache[vn_cache_key] = {
+                        'data': vn_results,
+                        'timestamp': datetime.now()
+                    }
+                    
+                if interval_changed:
+                    st.success(f"✅ Vietnamese stock charts updated to {chart_interval}")
+                elif just_refreshed:
+                    st.success(f"🔄 Vietnamese stock data refreshed ({chart_interval})")
+        
+            if vn_results:
+                # Sort results by signal strength
+                sorted_vn_results = sorted(
+                    [(symbol, data) for symbol, data in vn_results.items() if 'analysis' in data],
+                    key=lambda x: x[1]['analysis']['strength'],
+                    reverse=True
+                )
+                
+                # Create tabs for each Vietnamese stock
+                if sorted_vn_results:
+                    vn_stock_names = []
+                    for symbol, data in sorted_vn_results:
+                        company_name = data['analysis'].get('company_name', symbol)
+                        signal = data['analysis']['signal']
+                        strength = data['analysis']['strength']
+                        
+                        # Add signal emoji
+                        if 'LONG' in signal:
+                            emoji = "📈"
+                        elif 'SHORT' in signal:
+                            emoji = "📉"
+                        else:
+                            emoji = "➡️"
+                        
+                        vn_stock_names.append(f"{emoji} {company_name} ({strength})")
+                    
+                    vn_tabs = st.tabs(vn_stock_names)
+                    
+                    for i, (symbol, data) in enumerate(sorted_vn_results):
+                        with vn_tabs[i]:
+                            if 'error' in data:
+                                st.error(f"❌ Error fetching data for {symbol}: {data['error']}")
+                                continue
+                            
+                            analysis = data['analysis']
+                            df = data.get('data', pd.DataFrame())
+                            
+                            # Signal display
+                            signal_color = get_signal_color(analysis['signal'])
+                            st.markdown(
+                                f"""
+                                <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
+                                    <h3 style="color: {signal_color}; margin: 0;">
+                                        🇻🇳 {format_signal_display(analysis['signal'], analysis['strength'], lang)}
+                                    </h3>
+                                    <p style="margin: 0.5rem 0 0 0; color: #666;">{analysis['company_name']} ({symbol})</p>
+                                </div>
+                                """,
+                                unsafe_allow_html=True
+                            )
+                            
+                            # Vietnamese stock-specific metrics
+                            metric_cols = st.columns(6)
+                            with metric_cols[0]:
+                                st.metric("💰 Current Price", f"{analysis['current_price']:,.1f}K VND")
+                            with metric_cols[1]:
+                                rsi_val = analysis['rsi']
+                                rsi_status = "Oversold" if rsi_val < 30 else "Overbought" if rsi_val > 70 else "Neutral"
+                                st.metric("📈 RSI", f"{rsi_val:.1f}", help=f"Status: {rsi_status}")
+                            with metric_cols[2]:
+                                st.metric("📊 MACD", f"{analysis['macd']:.4f}")
+                            with metric_cols[3]:
+                                st.metric("📊 ATR", f"{analysis['atr']:.2f}")
+                            with metric_cols[4]:
+                                if 'volume_ratio' in analysis:
+                                    volume_color = "🟢" if analysis['volume_ratio'] > 1.2 else "🔴" if analysis['volume_ratio'] < 0.8 else "🟡"
+                                    st.metric("📊 Volume", f"{analysis['volume_ratio']:.2f}x", help=f"{volume_color} Volume vs average")
+                            with metric_cols[5]:
+                                st.metric("🎯 Signal Strength", f"{analysis['strength']}/10")
+                            
+                            # Additional Vietnamese market indicators
+                            if any(key in analysis for key in ['mfi', 'bullish_score', 'bearish_score']):
+                                st.subheader("📊 Vietnamese Market Indicators")
+                                vn_indicator_cols = st.columns(3)
+                                
+                                if 'mfi' in analysis and analysis['mfi'] > 0:
+                                    with vn_indicator_cols[0]:
+                                        mfi_val = analysis['mfi']
+                                        mfi_status = "Oversold" if mfi_val < 20 else "Overbought" if mfi_val > 80 else "Neutral"
+                                        st.metric("💰 Money Flow Index", f"{mfi_val:.1f}", help=f"Status: {mfi_status}")
+                                
+                                if 'bullish_score' in analysis and 'bearish_score' in analysis:
+                                    with vn_indicator_cols[1]:
+                                        st.metric("📈 Bullish Score", analysis['bullish_score'])
+                                    with vn_indicator_cols[2]:
+                                        st.metric("📉 Bearish Score", analysis['bearish_score'])
+                            
+                            # Entry and exit levels for Vietnamese stocks
+                            if analysis['signal'] != 'NEUTRAL':
+                                entry_cols = st.columns(3)
+                                with entry_cols[0]:
+                                    st.metric("🎯 Entry Price", f"{analysis['entry_price']:,.1f}K VND")
+                                with entry_cols[1]:
+                                    if analysis['stop_loss'] > 0:
+                                        st.metric("🛑 Stop Loss", f"{analysis['stop_loss']:,.1f}K VND")
+                                with entry_cols[2]:
+                                    if analysis['take_profit'] > 0:
+                                        st.metric("🎯 Take Profit", f"{analysis['take_profit']:,.1f}K VND")
+                            
+                            # Analysis reasons
+                            st.subheader("📋 Analysis Details")
+                            for reason in analysis['reasons']:
+                                st.write(f"• {reason}")
+                            
+                            # Technical chart for Vietnamese stocks
+                            if show_technical_indicators and not df.empty:
+                                st.subheader(f"📊 {analysis['company_name']} Technical Chart ({chart_interval})")
+                                chart = create_price_chart(df, f"{analysis['company_name']} ({symbol})", chart_interval)
+                                st.plotly_chart(chart, use_container_width=True)
+                else:
+                    st.warning("⚠️ No Vietnamese stock analysis available.")
+            else:
+                st.warning("⚠️ No Vietnamese stock data available. Check your internet connection.")
+
+        with col2:
+            st.subheader("🇻🇳 Vietnamese Stock Alerts")
+            
+            # Load Vietnamese stock-specific alert history
+            try:
+                alert_history = st.session_state.alert_system.get_alert_history(20)
+                vn_stock_symbols = list(st.session_state.vn_stock_analyzer.vn_stocks.keys())
+                vn_alerts = [alert for alert in alert_history if alert['symbol'] in vn_stock_symbols]
+                
+                if vn_alerts:
+                    for alert in reversed(vn_alerts[-10:]):  # Show last 10 Vietnamese stock alerts
+                        symbol_clean = f"🇻🇳 {alert['symbol']}"
+                        signal_color = get_signal_color(alert['signal'])
+                        translated_signal = get_signal_translation(alert['signal'], lang)
+                        
+                        st.markdown(
+                            f"""
+                            <div style="background-color: {signal_color}10; padding: 0.5rem; border-radius: 0.25rem; margin-bottom: 0.5rem; border-left: 3px solid {signal_color};">
+                                <strong>{symbol_clean}</strong><br>
+                                <span style="color: {signal_color};">{translated_signal}</span><br>
+                                <small>{alert['timestamp']}</small><br>
+                                <small>{alert['price']:,.1f}K VND</small>
+                            </div>
+                            """,
+                            unsafe_allow_html=True
+                        )
+                else:
+                    st.info("📭 No Vietnamese stock alerts yet")
+                    
+            except Exception as e:
+                st.error(f"❌ Error loading Vietnamese stock alert history: {str(e)}")
+            
+            # Vietnamese stock system status
+            st.subheader("🇻🇳 Vietnamese Stock System")
+            status_color = "#28a745" if st.session_state.monitoring else "#dc3545"
+            status_text = get_text("active", lang) if st.session_state.monitoring else get_text("inactive", lang)
+            last_update_text = st.session_state.last_update or get_text("never", lang)
+            
+            st.markdown(
+                f"""
+                <div style="background-color: {status_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {status_color};">
+                    <strong>🇻🇳 VN Stock Monitoring:</strong> {status_text}<br>
+                    <strong>📊 Chart Interval:</strong> {chart_interval}<br>
+                    <strong>🔄 Last Update:</strong> {last_update_text}<br>
+                    <strong>📈 Total Stocks:</strong> {len(st.session_state.vn_stock_analyzer.vn_stocks)}<br>
+                    <strong>🏢 Markets:</strong> HSX, HNX Exchanges<br>
+                    <strong>💱 Currency:</strong> Vietnamese Dong (VND)
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            # Vietnamese stock market overview
+            st.markdown("---")
+            st.subheader("📊 Market Overview")
+            
+            # Show top Vietnamese stocks
+            if vn_results:
+                st.write("**📈 Top Performers:**")
+                top_stocks = sorted(
+                    [(symbol, data) for symbol, data in vn_results.items() 
+                     if 'analysis' in data and 'LONG' in data['analysis']['signal']],
+                    key=lambda x: x[1]['analysis']['strength'],
+                    reverse=True
+                )[:3]
+                
+                if top_stocks:
+                    for symbol, data in top_stocks:
+                        analysis = data['analysis']
+                        st.write(f"• **{analysis['company_name']}** ({symbol}): {analysis['signal']} ({analysis['strength']}/10)")
+                else:
+                    st.write("No bullish signals currently")
     
     # Auto-refresh
     if st.session_state.monitoring:

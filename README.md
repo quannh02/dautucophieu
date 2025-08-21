@@ -1,6 +1,6 @@
 # 🚀 Multi-Market Trading Alert System
 
-A comprehensive technical analysis and alert system for **cryptocurrency** and **gold market** trading. Combines real-time technical indicators with news sentiment analysis to provide enhanced trading signals.
+A comprehensive technical analysis and alert system for **cryptocurrency**, **gold market**, and **Vietnamese stock** trading. Combines real-time technical indicators with news sentiment analysis to provide enhanced trading signals.
 
 ## 📊 Supported Markets
 
@@ -14,9 +14,28 @@ A comprehensive technical analysis and alert system for **cryptocurrency** and *
 - **GLD** (SPDR Gold Shares ETF)
 - Data source: Yahoo Finance
 
+### 🇻🇳 Vietnamese Stock Markets
+- **VNM.VN** (Vinamilk)
+- **VCB.VN** (Vietcombank)
+- **VIC.VN** (Vingroup)
+- **HPG.VN** (Hoa Phat Group)
+- **TCB.VN** (Techcombank)
+- **MSN.VN** (Masan Group)
+- **FPT.VN** (FPT Corporation)
+- **MWG.VN** (Mobile World)
+- **GAS.VN** (PV Gas)
+- **CTG.VN** (VietinBank)
+- **NVL.VN** (NovaLand)
+- **TPB.VN** (Tien Phong Bank)
+- **HHV.VN** (Hoa Hao Vinamilk)
+- **VJC.VN** (VietJet Aviation)
+- **VND.VN** (VN Direct Securities)
+- Data source: Yahoo Finance (HSX/HNX)
+- **Total: 15 Major Vietnamese Stocks**
+
 ## 🌟 Features
 
-- **📊 Multi-Market Technical Analysis**: Crypto + Gold markets
+- **📊 Multi-Market Technical Analysis**: Crypto + Gold + Vietnamese stocks
 - **📰 News Sentiment Analysis**: Multi-source news aggregation with sentiment scoring
 - **🚨 Real-time Alerts**: Desktop and email notifications
 - **🌐 Web Dashboard**: Interactive Streamlit interface
@@ -63,6 +82,19 @@ python -c "import nltk; nltk.download('vader_lexicon'); nltk.download('punkt')"
 
 # Daily gold analysis in Vietnamese
 ./run.sh gold vi 1d
+```
+
+#### Vietnamese Stock Analysis
+```bash
+# Analyze top 5 Vietnamese stocks (1h timeframe)
+./run.sh vnstock
+
+# Analyze specific Vietnamese stock
+./run.sh vnstock VNM.VN 1h en     # Vinamilk analysis
+./run.sh vnstock VCB.VN 4h vi     # Vietcombank in Vietnamese
+
+# Analyze multiple stocks in Vietnamese
+./run.sh vnstock ALL 1d vi 10     # Top 10 stocks, daily timeframe
 ```
 
 ### 3. News Sentiment Analysis

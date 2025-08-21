@@ -88,6 +88,38 @@ case "$1" in
         echo "📧 Testing Email Configuration..."
         python test_email.py
         ;;
+    "vnstock"|"vn")
+        echo "🇻🇳 Running Vietnamese Stock Analysis..."
+        
+        # Parse arguments for Vietnamese stock analysis
+        symbol="ALL"
+        interval="1h"
+        lang="en"
+        limit="5"
+        
+        # Parse arguments in order: symbol, interval, language, limit
+        if [ -n "$2" ]; then
+            symbol="$2"
+        fi
+        if [ -n "$3" ]; then
+            interval="$3"
+        fi
+        if [ -n "$4" ]; then
+            lang="$4"
+        fi
+        if [ -n "$5" ]; then
+            limit="$5"
+        fi
+        
+        # Build command for Vietnamese stock analysis
+        cmd="python vn_stock_analysis.py $symbol -i $interval -l $lang"
+        if [ "$symbol" = "ALL" ]; then
+            cmd="$cmd --limit $limit"
+        fi
+        
+        echo "Command: $cmd"
+        eval $cmd
+        ;;
     "news"|"n")
         echo "📰 Running News Sentiment Analysis..."
         
@@ -111,6 +143,7 @@ case "$1" in
         echo "Commands:"
         echo "  quick, q       - Quick analysis of BTC and ETH"
         echo "  gold, g        - Gold market analysis (GC=F futures and GOLD ETF)"
+        echo "  vnstock, vn    - Vietnamese stock market analysis (HSX/HNX stocks)"
         echo "  monitor, m     - Start real-time monitoring with alerts (optional: duration)"
         echo "  web, w         - Launch web dashboard"
         echo "  news, n        - Analyze news sentiment (optional: symbol, hours)"
@@ -128,6 +161,11 @@ case "$1" in
         echo "  ./run.sh gold               # Gold market analysis (English, 1h default)"
         echo "  ./run.sh gold 4h            # Gold analysis with 4 hour timeframe"
         echo "  ./run.sh gold vi 1d         # Vietnamese gold analysis with daily timeframe"
+        echo "  ./run.sh vnstock            # Analyze top 5 Vietnamese stocks (1h, English)"
+        echo "  ./run.sh vnstock VNM.VN     # Analyze Vinamilk stock specifically"
+        echo "  ./run.sh vnstock ALL 1h vi  # Top 5 Vietnamese stocks in Vietnamese"
+        echo "  ./run.sh vnstock VCB.VN 4h en # Vietcombank analysis with 4h timeframe"
+        echo "  ./run.sh vnstock ALL 1d vi 10 # Top 10 Vietnamese stocks, daily, Vietnamese"
         echo "  ./run.sh monitor            # Start monitoring (runs indefinitely)"
         echo "  ./run.sh monitor 1h         # Start monitoring for 1 hour"
         echo "  ./run.sh monitor 30m        # Start monitoring for 30 minutes"
