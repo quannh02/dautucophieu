@@ -465,14 +465,18 @@ def main():
                         # Key metrics
                         metric_cols = st.columns(4)
                         with metric_cols[0]:
-                            st.metric(get_text("current_price", lang), f"${analysis['current_price']:,.4f}")
+                            current_price = analysis.get('current_price', 0)
+                            st.metric(get_text("current_price", lang), f"${current_price:,.4f}")
                         with metric_cols[1]:
-                            rsi_status = get_text("oversold", lang) if analysis['rsi'] < 30 else get_text("overbought", lang) if analysis['rsi'] > 70 else get_text("neutral_rsi", lang)
-                            st.metric("📈 RSI", f"{analysis['rsi']:.2f}")
+                            rsi = analysis.get('rsi', 50)
+                            rsi_status = get_text("oversold", lang) if rsi < 30 else get_text("overbought", lang) if rsi > 70 else get_text("neutral_rsi", lang)
+                            st.metric("📈 RSI", f"{rsi:.2f}")
                         with metric_cols[2]:
-                            st.metric("📊 MACD", f"{analysis['macd']:.6f}")
+                            macd = analysis.get('macd', 0)
+                            st.metric("📊 MACD", f"{macd:.6f}")
                         with metric_cols[3]:
-                            st.metric(get_text("signal_strength", lang), analysis['strength'])
+                            strength = analysis.get('strength', 0)
+                            st.metric(get_text("signal_strength", lang), strength)
                         
                         # Add news sentiment indicator
                         crypto_symbol = symbol.replace('USDT', '')
@@ -480,8 +484,8 @@ def main():
                             with st.spinner("Fetching news sentiment..."):
                                 news_analysis = get_news_analysis(crypto_symbol, hours_back=12)
                             
-                            if news_analysis and news_analysis['articles_analyzed'] > 0:
-                                sentiment = news_analysis['overall_sentiment']
+                            if news_analysis and news_analysis.get('articles_analyzed', 0) > 0:
+                                sentiment = news_analysis.get('overall_sentiment', 'NEUTRAL')
                                 sentiment_color = get_news_sentiment_color(sentiment)
                                 sentiment_emoji = get_news_sentiment_emoji(sentiment)
                                 
@@ -493,37 +497,47 @@ def main():
                                     </div>
                                     """, unsafe_allow_html=True)
                                 with news_cols[1]:
-                                    st.metric("📰 Articles", news_analysis['articles_analyzed'])
+                                    articles_count = news_analysis.get('articles_analyzed', 0)
+                                    st.metric("📰 Articles", articles_count)
                                 with news_cols[2]:
-                                    st.metric("📊 Confidence", f"{news_analysis['trading_recommendation']['confidence']:.1f}%")
+                                    confidence = news_analysis.get('trading_recommendation', {}).get('confidence', 0)
+                                    st.metric("📊 Confidence", f"{confidence:.1f}%")
                         
                         # Entry and exit levels
-                        if analysis['signal'] != 'NEUTRAL':
+                        signal = analysis.get('signal', 'NEUTRAL')
+                        if signal != 'NEUTRAL':
                             entry_cols = st.columns(3)
                             with entry_cols[0]:
-                                st.metric(get_text("entry_price", lang), f"${analysis['entry_price']:,.4f}")
+                                entry_price = analysis.get('entry_price', 0)
+                                st.metric(get_text("entry_price", lang), f"${entry_price:,.4f}")
                             with entry_cols[1]:
-                                if analysis['stop_loss'] > 0:
-                                    st.metric(get_text("stop_loss", lang), f"${analysis['stop_loss']:,.4f}")
+                                stop_loss = analysis.get('stop_loss', 0)
+                                if stop_loss > 0:
+                                    st.metric(get_text("stop_loss", lang), f"${stop_loss:,.4f}")
                             with entry_cols[2]:
-                                if analysis['take_profit'] > 0:
-                                    st.metric(get_text("take_profit", lang), f"${analysis['take_profit']:,.4f}")
+                                take_profit = analysis.get('take_profit', 0)
+                                if take_profit > 0:
+                                    st.metric(get_text("take_profit", lang), f"${take_profit:,.4f}")
                         
                         # Analysis reasons
                         st.subheader(get_text("analysis_details", lang))
-                        for reason in analysis['reasons']:
-                            translated_reason = get_analysis_reason_translation(reason, lang)
-                            st.write(f"• {translated_reason}")
+                        reasons = analysis.get('reasons', [])
+                        if reasons:
+                            for reason in reasons:
+                                translated_reason = get_analysis_reason_translation(reason, lang)
+                                st.write(f"• {translated_reason}")
+                        else:
+                            st.info("No analysis reasons available")
                         
                         # Combined analysis (technical + news)
                         crypto_symbol = symbol.replace('USDT', '')
-                        if crypto_symbol in ['BTC', 'ETH'] and news_analysis and news_analysis['articles_analyzed'] > 0:
+                        if crypto_symbol in ['BTC', 'ETH'] and news_analysis and news_analysis.get('articles_analyzed', 0) > 0:
                             st.subheader("📊 Combined Analysis (Technical + News)")
                             
                             # Get news sentiment and technical signal
-                            news_sentiment = news_analysis['overall_sentiment']
-                            tech_signal = analysis['signal']
-                            recommendation = news_analysis['trading_recommendation']['action']
+                            news_sentiment = news_analysis.get('overall_sentiment', 'NEUTRAL')
+                            tech_signal = analysis.get('signal', 'NEUTRAL')
+                            recommendation = news_analysis.get('trading_recommendation', {}).get('action', 'HOLD')
                             
                             # Determine if signals align or conflict
                             aligned = (('LONG' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']) or
@@ -687,12 +701,14 @@ def main():
                         df = data.get('data', pd.DataFrame())
                         
                         # Signal display
-                        signal_color = get_signal_color(analysis['signal'])
+                        signal = analysis.get('signal', 'NEUTRAL')
+                        strength = analysis.get('strength', 0)
+                        signal_color = get_signal_color(signal)
                         st.markdown(
                             f"""
                             <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
                                 <h3 style="color: {signal_color}; margin: 0;">
-                                    🥇 {format_signal_display(analysis['signal'], analysis['strength'], lang)}
+                                    🥇 {format_signal_display(signal, strength, lang)}
                                 </h3>
                             </div>
                             """,
@@ -702,18 +718,22 @@ def main():
                         # Gold-specific metrics
                         metric_cols = st.columns(5)
                         with metric_cols[0]:
-                            st.metric("💰 Current Price", f"${analysis['current_price']:,.2f}")
+                            current_price = analysis.get('current_price', 0)
+                            st.metric("💰 Current Price", f"${current_price:,.2f}")
                         with metric_cols[1]:
-                            rsi_val = analysis['rsi']
+                            rsi_val = analysis.get('rsi', 50)
                             rsi_status = "Oversold" if rsi_val < 25 else "Overbought" if rsi_val > 75 else "Neutral"
                             st.metric("📈 RSI", f"{rsi_val:.2f}", help=f"Gold RSI thresholds: <25 oversold, >75 overbought")
                         with metric_cols[2]:
-                            st.metric("📊 MACD", f"{analysis['macd']:.6f}")
+                            macd = analysis.get('macd', 0)
+                            st.metric("📊 MACD", f"{macd:.6f}")
                         with metric_cols[3]:
-                            if 'cci' in analysis:
-                                st.metric("📈 CCI", f"{analysis['cci']:.2f}", help="Commodity Channel Index")
+                            cci = analysis.get('cci', 0)
+                            if cci != 0:
+                                st.metric("📈 CCI", f"{cci:.2f}", help="Commodity Channel Index")
                         with metric_cols[4]:
-                            st.metric("🎯 Signal Strength", analysis['strength'])
+                            strength = analysis.get('strength', 0)
+                            st.metric("🎯 Signal Strength", strength)
                         
                         # Add gold news sentiment
                         with st.spinner("Fetching gold news sentiment..."):
@@ -737,51 +757,63 @@ def main():
                                 st.metric("📊 Confidence", f"{gold_news['trading_recommendation']['confidence']:.1f}%")
                         
                         # Entry and exit levels for gold
-                        if analysis['signal'] != 'NEUTRAL':
+                        signal = analysis.get('signal', 'NEUTRAL')
+                        if signal != 'NEUTRAL':
                             entry_cols = st.columns(3)
                             with entry_cols[0]:
-                                st.metric("🎯 Entry Price", f"${analysis['entry_price']:,.2f}")
+                                entry_price = analysis.get('entry_price', 0)
+                                st.metric("🎯 Entry Price", f"${entry_price:,.2f}")
                             with entry_cols[1]:
-                                if analysis['stop_loss'] > 0:
-                                    st.metric("🛑 Stop Loss", f"${analysis['stop_loss']:,.2f}")
+                                stop_loss = analysis.get('stop_loss', 0)
+                                if stop_loss > 0:
+                                    st.metric("🛑 Stop Loss", f"${stop_loss:,.2f}")
                             with entry_cols[2]:
-                                if analysis['take_profit'] > 0:
-                                    st.metric("🎯 Take Profit", f"${analysis['take_profit']:,.2f}")
+                                take_profit = analysis.get('take_profit', 0)
+                                if take_profit > 0:
+                                    st.metric("🎯 Take Profit", f"${take_profit:,.2f}")
                         
                         # Gold-specific indicators
-                        if any(key in analysis for key in ['atr', 'cci', 'donchian_upper', 'donchian_lower']):
+                        atr = analysis.get('atr', 0)
+                        cci = analysis.get('cci', 0)
+                        donchian_upper = analysis.get('donchian_upper', 0)
+                        donchian_lower = analysis.get('donchian_lower', 0)
+                        
+                        if any([atr, cci, donchian_upper, donchian_lower]):
                             st.subheader("📊 Gold-Specific Indicators")
                             gold_indicator_cols = st.columns(4)
                             
-                            if 'atr' in analysis:
+                            if atr > 0:
                                 with gold_indicator_cols[0]:
-                                    st.metric("📊 ATR", f"{analysis['atr']:.2f}", help="Average True Range - Volatility measure")
+                                    st.metric("📊 ATR", f"{atr:.2f}", help="Average True Range - Volatility measure")
                             
-                            if 'cci' in analysis:
+                            if cci != 0:
                                 with gold_indicator_cols[1]:
-                                    cci_val = analysis['cci']
-                                    cci_status = "Oversold" if cci_val < -100 else "Overbought" if cci_val > 100 else "Neutral"
-                                    st.metric("📈 CCI", f"{cci_val:.2f}", help=f"Commodity Channel Index: {cci_status}")
+                                    cci_status = "Oversold" if cci < -100 else "Overbought" if cci > 100 else "Neutral"
+                                    st.metric("📈 CCI", f"{cci:.2f}", help=f"Commodity Channel Index: {cci_status}")
                             
-                            if 'donchian_upper' in analysis and 'donchian_lower' in analysis:
+                            if donchian_upper > 0 and donchian_lower > 0:
                                 with gold_indicator_cols[2]:
-                                    st.metric("📈 Donchian High", f"${analysis['donchian_upper']:,.2f}")
+                                    st.metric("📈 Donchian High", f"${donchian_upper:,.2f}")
                                 with gold_indicator_cols[3]:
-                                    st.metric("📉 Donchian Low", f"${analysis['donchian_lower']:,.2f}")
+                                    st.metric("📉 Donchian Low", f"${donchian_lower:,.2f}")
                         
                         # Analysis reasons
                         st.subheader("📋 Analysis Details")
-                        for reason in analysis['reasons']:
-                            st.write(f"• {reason}")
+                        reasons = analysis.get('reasons', [])
+                        if reasons:
+                            for reason in reasons:
+                                st.write(f"• {reason}")
+                        else:
+                            st.info("No analysis reasons available")
                         
                         # Combined gold analysis (technical + news)
-                        if gold_news and gold_news['articles_analyzed'] > 0:
+                        if gold_news and gold_news.get('articles_analyzed', 0) > 0:
                             st.subheader("📊 Combined Gold Analysis (Technical + News)")
                             
                             # Get news sentiment and technical signal
-                            news_sentiment = gold_news['overall_sentiment']
-                            tech_signal = analysis['signal']
-                            recommendation = gold_news['trading_recommendation']['action']
+                            news_sentiment = gold_news.get('overall_sentiment', 'NEUTRAL')
+                            tech_signal = analysis.get('signal', 'NEUTRAL')
+                            recommendation = gold_news.get('trading_recommendation', {}).get('action', 'HOLD')
                             
                             # Determine if signals align or conflict
                             aligned = (('LONG' in tech_signal and news_sentiment in ['VERY_POSITIVE', 'POSITIVE']) or
@@ -990,14 +1022,17 @@ def main():
                             df = data.get('data', pd.DataFrame())
                             
                             # Signal display
-                            signal_color = get_signal_color(analysis['signal'])
+                            signal = analysis.get('signal', 'NEUTRAL')
+                            strength = analysis.get('strength', 0)
+                            company_name = analysis.get('company_name', symbol)
+                            signal_color = get_signal_color(signal)
                             st.markdown(
                                 f"""
                                 <div style="background-color: {signal_color}20; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid {signal_color}; margin-bottom: 1rem;">
                                     <h3 style="color: {signal_color}; margin: 0;">
-                                        🇻🇳 {format_signal_display(analysis['signal'], analysis['strength'], lang)}
+                                        🇻🇳 {format_signal_display(signal, strength, lang)}
                                     </h3>
-                                    <p style="margin: 0.5rem 0 0 0; color: #666;">{analysis['company_name']} ({symbol})</p>
+                                    <p style="margin: 0.5rem 0 0 0; color: #666;">{company_name} ({symbol})</p>
                                 </div>
                                 """,
                                 unsafe_allow_html=True
@@ -1006,65 +1041,83 @@ def main():
                             # Vietnamese stock-specific metrics
                             metric_cols = st.columns(7)
                             with metric_cols[0]:
-                                st.metric("💰 Current Price", f"{analysis['current_price']:,.1f}K VND")
+                                current_price = analysis.get('current_price', 0)
+                                st.metric("💰 Current Price", f"{current_price:,.1f}K VND")
                             with metric_cols[1]:
-                                rsi_val = analysis['rsi']
+                                rsi_val = analysis.get('rsi', 50)
                                 rsi_status = "Oversold" if rsi_val < 30 else "Overbought" if rsi_val > 70 else "Neutral"
                                 st.metric("📈 RSI", f"{rsi_val:.1f}", help=f"Status: {rsi_status}")
                             with metric_cols[2]:
-                                st.metric("📊 MACD", f"{analysis['macd']:.4f}")
+                                macd = analysis.get('macd', 0)
+                                st.metric("📊 MACD", f"{macd:.4f}")
                             with metric_cols[3]:
                                 # EMA20 with trend indication
-                                if 'ema_20' in analysis:
-                                    ema_trend = "📈" if analysis['current_price'] > analysis['ema_20'] else "📉"
-                                    st.metric("📊 EMA20", f"{analysis['ema_20']:,.1f}K", help=f"{ema_trend} Price vs EMA20")
+                                ema_20 = analysis.get('ema_20', 0)
+                                if ema_20 > 0:
+                                    ema_trend = "📈" if current_price > ema_20 else "📉"
+                                    st.metric("📊 EMA20", f"{ema_20:,.1f}K", help=f"{ema_trend} Price vs EMA20")
                             with metric_cols[4]:
-                                st.metric("📊 ATR", f"{analysis['atr']:.2f}")
+                                atr = analysis.get('atr', 0)
+                                st.metric("📊 ATR", f"{atr:.2f}")
                             with metric_cols[5]:
-                                if 'volume_ratio' in analysis:
-                                    volume_color = "🟢" if analysis['volume_ratio'] > 1.2 else "🔴" if analysis['volume_ratio'] < 0.8 else "🟡"
-                                    st.metric("📊 Volume", f"{analysis['volume_ratio']:.2f}x", help=f"{volume_color} Volume vs average")
+                                volume_ratio = analysis.get('volume_ratio', 1)
+                                if volume_ratio > 0:
+                                    volume_color = "🟢" if volume_ratio > 1.2 else "🔴" if volume_ratio < 0.8 else "🟡"
+                                    st.metric("📊 Volume", f"{volume_ratio:.2f}x", help=f"{volume_color} Volume vs average")
                             with metric_cols[6]:
-                                st.metric("🎯 Signal Strength", f"{analysis['strength']}/10")
+                                strength = analysis.get('strength', 0)
+                                st.metric("🎯 Signal Strength", f"{strength}/10")
                             
                             # Additional Vietnamese market indicators
-                            if any(key in analysis for key in ['mfi', 'bullish_score', 'bearish_score']):
+                            mfi = analysis.get('mfi', 0)
+                            bullish_score = analysis.get('bullish_score', 0)
+                            bearish_score = analysis.get('bearish_score', 0)
+                            
+                            if any([mfi > 0, bullish_score > 0, bearish_score > 0]):
                                 st.subheader("📊 Vietnamese Market Indicators")
                                 vn_indicator_cols = st.columns(3)
                                 
-                                if 'mfi' in analysis and analysis['mfi'] > 0:
+                                if mfi > 0:
                                     with vn_indicator_cols[0]:
-                                        mfi_val = analysis['mfi']
-                                        mfi_status = "Oversold" if mfi_val < 20 else "Overbought" if mfi_val > 80 else "Neutral"
-                                        st.metric("💰 Money Flow Index", f"{mfi_val:.1f}", help=f"Status: {mfi_status}")
+                                        mfi_status = "Oversold" if mfi < 20 else "Overbought" if mfi > 80 else "Neutral"
+                                        st.metric("💰 Money Flow Index", f"{mfi:.1f}", help=f"Status: {mfi_status}")
                                 
-                                if 'bullish_score' in analysis and 'bearish_score' in analysis:
+                                if bullish_score > 0 or bearish_score > 0:
                                     with vn_indicator_cols[1]:
-                                        st.metric("📈 Bullish Score", analysis['bullish_score'])
+                                        st.metric("📈 Bullish Score", bullish_score)
                                     with vn_indicator_cols[2]:
-                                        st.metric("📉 Bearish Score", analysis['bearish_score'])
+                                        st.metric("📉 Bearish Score", bearish_score)
                             
                             # Entry and exit levels for Vietnamese stocks
-                            if analysis['signal'] != 'NEUTRAL':
+                            signal = analysis.get('signal', 'NEUTRAL')
+                            if signal != 'NEUTRAL':
                                 entry_cols = st.columns(3)
                                 with entry_cols[0]:
-                                    st.metric("🎯 Entry Price", f"{analysis['entry_price']:,.1f}K VND")
+                                    entry_price = analysis.get('entry_price', 0)
+                                    st.metric("🎯 Entry Price", f"{entry_price:,.1f}K VND")
                                 with entry_cols[1]:
-                                    if analysis['stop_loss'] > 0:
-                                        st.metric("🛑 Stop Loss", f"{analysis['stop_loss']:,.1f}K VND")
+                                    stop_loss = analysis.get('stop_loss', 0)
+                                    if stop_loss > 0:
+                                        st.metric("🛑 Stop Loss", f"{stop_loss:,.1f}K VND")
                                 with entry_cols[2]:
-                                    if analysis['take_profit'] > 0:
-                                        st.metric("🎯 Take Profit", f"{analysis['take_profit']:,.1f}K VND")
+                                    take_profit = analysis.get('take_profit', 0)
+                                    if take_profit > 0:
+                                        st.metric("🎯 Take Profit", f"{take_profit:,.1f}K VND")
                             
                             # Analysis reasons
                             st.subheader("📋 Analysis Details")
-                            for reason in analysis['reasons']:
-                                st.write(f"• {reason}")
+                            reasons = analysis.get('reasons', [])
+                            if reasons:
+                                for reason in reasons:
+                                    st.write(f"• {reason}")
+                            else:
+                                st.info("No analysis reasons available")
                             
                             # Technical chart for Vietnamese stocks
                             if show_technical_indicators and not df.empty:
-                                st.subheader(f"📊 {analysis['company_name']} Technical Chart ({chart_interval})")
-                                chart = create_price_chart(df, f"{analysis['company_name']} ({symbol})", chart_interval)
+                                company_name = analysis.get('company_name', symbol)
+                                st.subheader(f"📊 {company_name} Technical Chart ({chart_interval})")
+                                chart = create_price_chart(df, f"{company_name} ({symbol})", chart_interval)
                                 st.plotly_chart(chart, use_container_width=True)
                 else:
                     st.warning("⚠️ No Vietnamese stock analysis available.")
