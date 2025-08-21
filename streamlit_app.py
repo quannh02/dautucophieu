@@ -405,13 +405,23 @@ def main():
             else:
                 spinner_text = get_text("fetching_fresh_data", lang, interval=chart_interval) if just_refreshed else get_text("fetching_market_data", lang, interval=chart_interval)
                 with st.spinner(spinner_text):
-                    results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
-                    
-                    # Cache the results
-                    st.session_state.analysis_cache[cache_key] = {
-                        'data': results,
-                        'timestamp': datetime.now()
-                    }
+                    try:
+                        results = st.session_state.analyzer.analyze_all_symbols(interval=chart_interval)
+                        
+                        # Cache the results
+                        st.session_state.analysis_cache[cache_key] = {
+                            'data': results,
+                            'timestamp': datetime.now()
+                        }
+                    except Exception as e:
+                        st.error(f"❌ Error connecting to market data: {str(e)}")
+                        st.info("🔄 Please try refreshing the page or check your internet connection.")
+                        # Use cached data if available, otherwise show empty results
+                        if cache_key in st.session_state.analysis_cache:
+                            results = st.session_state.analysis_cache[cache_key]['data']
+                            st.warning("📊 Using cached data due to connection issues")
+                        else:
+                            results = {}
                     
                 if interval_changed:
                     st.success(get_text("charts_updated", lang, interval=chart_interval))
@@ -425,7 +435,15 @@ def main():
                 for i, (symbol, data) in enumerate(results.items()):
                     with tabs[i]:
                         if 'error' in data:
-                            st.error(get_text("error_fetching_data", lang, symbol=symbol, error=data['error']))
+                            st.error(f"❌ {get_text('error_fetching_data', lang, symbol=symbol, error=data['error'])}")
+                            st.info("🔄 This might be due to temporary API issues. Please try again in a few minutes.")
+                            # Show a placeholder with basic info
+                            st.markdown("""
+                            <div style="background-color: #f8f9fa; padding: 1rem; border-radius: 0.5rem; border-left: 5px solid #6c757d;">
+                                <h3 style="color: #6c757d; margin: 0;">⚠️ Data Unavailable</h3>
+                                <p>Market data is temporarily unavailable. Please check back later.</p>
+                            </div>
+                            """, unsafe_allow_html=True)
                             continue
                         
                         analysis = data['analysis']

@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import ta
+import time
 from datetime import datetime, timedelta
 import requests
 import json
@@ -267,18 +268,29 @@ class CryptoAnalyzer:
     
     def analyze_all_symbols(self, interval: str = "5m") -> Dict:
         """
-        Analyze all configured symbols
+        Analyze all configured symbols with retry logic
         """
         results = {}
         
         for symbol in self.symbols:
             try:
-                results[symbol] = self.analyze_symbol(symbol, interval=interval)
+                # Add retry logic for better reliability
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        results[symbol] = self.analyze_symbol(symbol, interval=interval)
+                        break  # Success, exit retry loop
+                    except Exception as e:
+                        if attempt == max_retries - 1:  # Last attempt
+                            raise e
+                        logger.warning(f"Attempt {attempt + 1} failed for {symbol}, retrying... Error: {e}")
+                        time.sleep(1)  # Wait before retry
+                        
             except Exception as e:
-                logger.error(f"Error analyzing {symbol}: {e}")
+                logger.error(f"Error analyzing {symbol} after {max_retries} attempts: {e}")
                 results[symbol] = {
                     'symbol': symbol,
-                    'error': str(e)
+                    'error': f"Failed to fetch data for {symbol}: {str(e)}"
                 }
         
         return results 
